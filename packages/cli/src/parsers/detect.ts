@@ -1,0 +1,135 @@
+import yaml from 'js-yaml';
+import type { ParsedMcpConfig, WrapperKey, McpServerConfig } from '../types.js';
+
+/**
+ * Known wrapper keys for different tools
+ */
+const WRAPPER_KEYS: WrapperKey[] = [
+    'mcpServers',
+    'servers',
+    'context_servers',
+    'mcp',
+    'mcp_servers',
+];
+
+/**
+ * Detect format and parse MCP configuration
+ */
+export function parseConfig(input: string): ParsedMcpConfig {
+    const trimmed = input.trim();
+
+    // Try JSON first
+    if (trimmed.startsWith('{')) {
+        return parseJsonConfig(trimmed);
+    }
+
+    // Try YAML
+    return parseYamlConfig(trimmed);
+}
+
+/**
+ * Parse JSON configuration
+ */
+function parseJsonConfig(input: string): ParsedMcpConfig {
+    let parsed: Record<string, unknown>;
+
+    try {
+        parsed = JSON.parse(input);
+    } catch (err) {
+        throw new Error(`Invalid JSON: ${err instanceof Error ? err.message : 'Parse error'}`);
+    }
+
+    return extractServers(parsed, 'json');
+}
+
+/**
+ * Parse YAML configuration
+ */
+function parseYamlConfig(input: string): ParsedMcpConfig {
+    let parsed: Record<string, unknown>;
+
+    try {
+        parsed = yaml.load(input) as Record<string, unknown>;
+    } catch (err) {
+        throw new Error(`Invalid YAML: ${err instanceof Error ? err.message : 'Parse error'}`);
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Invalid YAML: must be an object');
+    }
+
+    return extractServers(parsed, 'yaml');
+}
+
+/**
+ * Extract servers from parsed config, auto-detecting wrapper key
+ */
+function extractServers(
+    parsed: Record<string, unknown>,
+    sourceFormat: 'json' | 'yaml'
+): ParsedMcpConfig {
+    // Find wrapper key
+    let wrapperKey: WrapperKey | string | undefined;
+    let serversObj: Record<string, unknown> | undefined;
+
+    for (const key of WRAPPER_KEYS) {
+        if (key in parsed) {
+            wrapperKey = key;
+            serversObj = parsed[key] as Record<string, unknown>;
+            break;
+        }
+    }
+
+    // If no known wrapper key, check if it's a direct server config
+    if (!wrapperKey) {
+        // Check if this looks like a direct server config (has command or url)
+        const firstValue = Object.values(parsed)[0];
+        if (firstValue && typeof firstValue === 'object' && ('command' in firstValue || 'url' in firstValue)) {
+            wrapperKey = 'direct';
+            serversObj = parsed;
+        } else {
+            throw new Error('Could not detect MCP configuration format. Expected mcpServers, servers, context_servers, mcp, or mcp_servers key.');
+        }
+    }
+
+    if (!serversObj || typeof serversObj !== 'object') {
+        throw new Error(`Invalid ${wrapperKey} value: must be an object`);
+    }
+
+    // Validate and normalize servers
+    const servers: Record<string, McpServerConfig> = {};
+
+    for (const [name, config] of Object.entries(serversObj)) {
+        if (!config || typeof config !== 'object') {
+            throw new Error(`Invalid server config for "${name}": must be an object`);
+        }
+
+        const serverConfig = config as Record<string, unknown>;
+
+        // Handle OpenCode special format (command is array)
+        if (Array.isArray(serverConfig.command)) {
+            const [cmd, ...args] = serverConfig.command as string[];
+            servers[name] = {
+                command: cmd,
+                args,
+                env: (serverConfig.environment || serverConfig.env) as Record<string, string | null> | undefined,
+                type: serverConfig.type as 'stdio' | 'http' | 'sse' | undefined,
+            };
+        } else {
+            servers[name] = {
+                command: serverConfig.command as string | undefined,
+                args: serverConfig.args as string[] | undefined,
+                env: serverConfig.env as Record<string, string | null> | undefined,
+                type: serverConfig.type as 'stdio' | 'http' | 'sse' | undefined,
+                url: serverConfig.url as string | undefined,
+                headers: serverConfig.headers as Record<string, string> | undefined,
+            };
+        }
+    }
+
+    return {
+        servers,
+        sourceFormat,
+        sourceWrapperKey: wrapperKey,
+    };
+}

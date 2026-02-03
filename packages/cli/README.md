@@ -1,37 +1,37 @@
-# mcpm
+# @khanglvm/mcpm
 
 MCP Manager — Centralized MCP server configuration for AI coding agents.
 
 ## Features
 
-- 🔍 **Auto-detects** 16 AI coding agents
-- 📋 **Paste** JSON/YAML MCP configs from READMEs
-- 🔗 **GitHub** URL to extract MCP servers
-- 🔐 **Keychain** storage for secrets
-- ⚡ **Sync** registry to multiple agents at once
-- 📥 **Import** existing servers from your agents
+- Auto-detects 16 AI coding agents
+- Paste JSON/YAML MCP configs from READMEs
+- GitHub URL to extract MCP servers
+- Keychain storage for secrets
+- Sync registry to multiple agents at once
+- Import existing servers from your agents
 
 ## Quick Start
 
 ```bash
 # Interactive mode
-npx mcpm
+npx @khanglvm/mcpm
 
 # CLI commands
-npx mcpm list              # List servers in registry
-npx mcpm add               # Add server interactively  
-npx mcpm sync              # Push registry to all agents
-npx mcpm import            # Import from agents
-npx mcpm status            # Check sync status
-npx mcpm remove <name>     # Remove from registry
+npx @khanglvm/mcpm list              # List servers in registry
+npx @khanglvm/mcpm add               # Add server interactively  
+npx @khanglvm/mcpm sync              # Push registry to all agents
+npx @khanglvm/mcpm import            # Import from agents
+npx @khanglvm/mcpm status            # Check sync status
+npx @khanglvm/mcpm remove <name>     # Remove from registry
 ```
 
 ## Options
 
 ```bash
-npx mcpm --paste           # Paste configuration mode
-npx mcpm --build           # Build step-by-step
-npx mcpm <github-url>      # Install from GitHub
+npx @khanglvm/mcpm --paste           # Paste configuration mode
+npx @khanglvm/mcpm --build           # Build step-by-step
+npx @khanglvm/mcpm <github-url>      # Install from GitHub
 ```
 
 ## Registry

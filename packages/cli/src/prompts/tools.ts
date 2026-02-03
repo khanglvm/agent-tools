@@ -3,10 +3,12 @@ import pc from 'picocolors';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import type { AgentType, ParsedMcpConfig } from '../types.js';
+import type { AgentType, ParsedMcpConfig, McpServerConfig } from '../types.js';
 import { agents, getAgentConfig } from '../agents.js';
 import { showSecurityWarning } from './security.js';
 import { injectConfig } from '../core/injector.js';
+import { addServer } from '../registry/store.js';
+import type { RegistryServer } from '../registry/types.js';
 
 /**
  * Show tool selector (multiselect)
@@ -43,6 +45,16 @@ export async function showToolSelector(
     const serverNames = Object.keys(config.servers).join(', ');
 
     await p.tasks([
+        {
+            title: `Saving to registry`,
+            task: async (message) => {
+                for (const [name, serverConfig] of Object.entries(config.servers)) {
+                    const registryServer = toRegistryServer(name, serverConfig);
+                    addServer(registryServer);
+                }
+                return `Saved ${Object.keys(config.servers).length} server(s) to registry`;
+            },
+        },
         {
             title: `Backing up existing configs`,
             task: async (message) => {
@@ -105,3 +117,26 @@ async function backupConfig(agentType: AgentType): Promise<void> {
     writeFileSync(backupPath, content);
 }
 
+/**
+ * Convert McpServerConfig to RegistryServer format
+ */
+function toRegistryServer(name: string, config: McpServerConfig): RegistryServer {
+    const transport = config.type || 'stdio';
+
+    if (transport === 'stdio') {
+        return {
+            name,
+            transport: 'stdio',
+            command: config.command!,
+            args: config.args,
+            env: config.env as Record<string, string>,
+        };
+    } else {
+        return {
+            name,
+            transport: transport as 'http' | 'sse',
+            url: config.url!,
+            headers: config.headers,
+        };
+    }
+}

@@ -8,25 +8,12 @@ Tools and utilities for AI coding agents.
 
 Install MCP server configurations to AI coding agents with one command.
 
-**Features:**
-- 🔍 Auto-detects 14+ AI coding agents (Claude Code, Cursor, Windsurf, etc.)
-- 📋 Paste JSON/YAML MCP configs from READMEs
-- 🔗 GitHub URL extraction from repos
-- 🔐 Environment variables with password masking
-- ⚠️ Security warnings before installation
-- 💾 Automatic backups before overwriting
-
-**Use when:**
-- "Install MCP servers to my agents"
-- "Add GitHub MCP to Cursor"
-- "Configure filesystem access for Claude Code"
-
-**Installation:**
 ```bash
 npx mcpget
 ```
 
-**Usage:**
+### Usage
+
 ```bash
 # Interactive mode
 npx mcpget
@@ -38,18 +25,8 @@ npx mcpget https://github.com/modelcontextprotocol/servers
 npx mcpget --paste
 ```
 
-**Supported Agents:**
-| Agent | Config Path |
-|-------|-------------|
-| Claude Code | `~/.claude/claude_desktop_config.json` |
-| Cursor | `~/.cursor/mcp.json` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
-| VS Code | `~/.vscode/mcp.json` |
-| Zed | `~/.config/zed/settings.json` |
-| Antigravity | `~/.gemini/antigravity/config/mcp.json` |
-| + 10 more... | |
+#### Example
 
-**Example:**
 ```
 $ npx mcpget https://github.com/modelcontextprotocol/servers
 
@@ -71,18 +48,38 @@ $ npx mcpget https://github.com/modelcontextprotocol/servers
 └
 ```
 
+### Supported Agents
+
+| Agent | Config Path | Wrapper Key |
+|-------|-------------|-------------|
+| Amp | `~/.config/amp/mcp.json` | `mcpServers` |
+| Antigravity | `~/.gemini/antigravity/mcp_config.json` | `mcpServers` |
+| Claude Code | `~/.claude/settings.json` | `mcpServers` |
+| Cline | `~/.cline/mcp.json` | `mcpServers` |
+| Codex (OpenAI) | `~/.codex/config.toml` | `mcp_servers` |
+| Continue | `~/.continue/config.yaml` | `mcpServers` |
+| Cursor | `~/.cursor/mcp.json` | `mcpServers` |
+| Factory Droid | `~/.factory/mcp.json` | `mcpServers` |
+| Gemini CLI | `~/.gemini/settings.json` | `mcpServers` |
+| GitHub Copilot CLI | `~/.copilot/mcp-config.json` | `mcpServers` |
+| Goose | `~/.config/goose/mcp.json` | `mcpServers` |
+| OpenCode | `~/.config/opencode/oh-my-opencode.json` | `mcp` |
+| Roo Code | `~/.roo/mcp.json` | `mcpServers` |
+| VS Code + Copilot | `~/Library/.../Code/User/mcp.json` | `servers` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
+| Zed | `~/.config/zed/settings.json` | `context_servers` |
+
 ## Development
 
 ```bash
 # Install dependencies
 pnpm install
 
-# Build all packages
-pnpm run build
+# Build
+cd packages/cli && pnpm run build
 
-# Run CLI locally
-cd packages/cli
-node dist/cli.js
+# Run locally
+node packages/cli/dist/cli.js
 ```
 
 ## License

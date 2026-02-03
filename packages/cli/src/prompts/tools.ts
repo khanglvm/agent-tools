@@ -28,15 +28,15 @@ export async function showToolSelector(
     });
 
     if (p.isCancel(selectedTools)) {
-        p.cancel('Operation cancelled.');
-        process.exit(0);
+        p.log.info('Cancelled');
+        return;
     }
 
     // Show security warning
     const confirmed = await showSecurityWarning(config);
     if (!confirmed) {
-        p.cancel('Installation cancelled.');
-        process.exit(0);
+        p.log.info('Cancelled');
+        return;
     }
 
     // Use tasks for structured installation
@@ -92,7 +92,7 @@ async function backupConfig(agentType: AgentType): Promise<void> {
     if (!existsSync(configPath)) return;
 
     // Create backup directory
-    const backupDir = join(homedir(), '.mcpx', 'backups');
+    const backupDir = join(homedir(), '.mcpm', 'backups');
     if (!existsSync(backupDir)) {
         mkdirSync(backupDir, { recursive: true });
     }

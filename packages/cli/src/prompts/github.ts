@@ -25,8 +25,8 @@ export async function showGitHubPrompt(
         });
 
         if (p.isCancel(urlInput)) {
-            p.cancel('Operation cancelled.');
-            process.exit(0);
+            p.log.info('Cancelled');
+            return;
         }
 
         url = urlInput;

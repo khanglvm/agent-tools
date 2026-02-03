@@ -1,63 +1,67 @@
-# mcpget
+# mcpm
 
-Install MCP server configurations to AI coding agents with one command.
+MCP Manager — Centralized MCP server configuration for AI coding agents.
 
-## Usage
+## Features
+
+- 🔍 **Auto-detects** 16 AI coding agents
+- 📋 **Paste** JSON/YAML MCP configs from READMEs
+- 🔗 **GitHub** URL to extract MCP servers
+- 🔐 **Keychain** storage for secrets
+- ⚡ **Sync** registry to multiple agents at once
+- 📥 **Import** existing servers from your agents
+
+## Quick Start
 
 ```bash
 # Interactive mode
-npx mcpget
+npx mcpm
 
-# Install from GitHub
-npx mcpget https://github.com/modelcontextprotocol/servers
-
-# Paste mode
-npx mcpget --paste
+# CLI commands
+npx mcpm list              # List servers in registry
+npx mcpm add               # Add server interactively  
+npx mcpm sync              # Push registry to all agents
+npx mcpm import            # Import from agents
+npx mcpm status            # Check sync status
+npx mcpm remove <name>     # Remove from registry
 ```
 
-### Example
+## Options
 
+```bash
+npx mcpm --paste           # Paste configuration mode
+npx mcpm --build           # Build step-by-step
+npx mcpm <github-url>      # Install from GitHub
 ```
-$ npx mcpget https://github.com/modelcontextprotocol/servers
 
-┌   mcpget 
-│
-●  Detected 14 agent(s)
-●  Fetching from modelcontextprotocol/servers...
-◇  Found 4 server(s): filesystem, git, github, postgres
-│
-◆  Select tools to configure:
-│  ◼ Claude Code
-│  ◼ Cursor
-│  ◻ VS Code
-│
-◇  Backing up existing configs
-◇  Installing servers
-│
-●  Configuration complete!
-└
-```
+## Registry
+
+All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent.
+
+| Location | Purpose |
+|----------|---------|
+| `~/.mcpm/registry.json` | Central server store |
+| `~/.mcpm/backups/` | Automatic backups |
 
 ## Supported Agents
 
-| Agent | Config Path | Wrapper Key |
-|-------|-------------|-------------|
-| Amp | `~/.config/amp/mcp.json` | `mcpServers` |
-| Antigravity | `~/.gemini/antigravity/mcp_config.json` | `mcpServers` |
-| Claude Code | `~/.claude/settings.json` | `mcpServers` |
-| Cline | `~/.cline/mcp.json` | `mcpServers` |
-| Codex (OpenAI) | `~/.codex/config.toml` | `mcp_servers` |
-| Continue | `~/.continue/config.yaml` | `mcpServers` |
-| Cursor | `~/.cursor/mcp.json` | `mcpServers` |
-| Factory Droid | `~/.factory/mcp.json` | `mcpServers` |
-| Gemini CLI | `~/.gemini/settings.json` | `mcpServers` |
-| GitHub Copilot CLI | `~/.copilot/mcp-config.json` | `mcpServers` |
-| Goose | `~/.config/goose/mcp.json` | `mcpServers` |
-| OpenCode | `~/.config/opencode/oh-my-opencode.json` | `mcp` |
-| Roo Code | `~/.roo/mcp.json` | `mcpServers` |
-| VS Code + Copilot | `~/Library/.../Code/User/mcp.json` | `servers` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
-| Zed | `~/.config/zed/settings.json` | `context_servers` |
+| Agent | Transport | Format |
+|-------|-----------|--------|
+| Claude Code | stdio, http, sse | JSON |
+| Cursor | stdio, http, sse | JSON |
+| Windsurf | stdio, http, sse | JSON |
+| Antigravity | stdio, http, sse | JSON |
+| Cline | stdio, http, sse | JSON |
+| Roo Code | stdio, http, sse | JSON |
+| VS Code + Copilot | stdio, http | JSON |
+| GitHub Copilot CLI | stdio, http | JSON |
+| Gemini CLI | stdio, http, sse | JSON |
+| Continue | stdio, http | YAML |
+| Goose | stdio, http | YAML |
+| OpenCode | stdio, http | YAML |
+| Codex (OpenAI) | stdio | TOML |
+| Zed | stdio | JSON |
+| Factory Droid | stdio, http | JSON |
 
 ## License
 

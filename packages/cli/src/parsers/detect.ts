@@ -113,14 +113,14 @@ function extractServers(
                 command: cmd,
                 args,
                 env: (serverConfig.environment || serverConfig.env) as Record<string, string | null> | undefined,
-                type: serverConfig.type as 'stdio' | 'http' | 'sse' | undefined,
+                type: normalizeType(serverConfig.type),
             };
         } else {
             servers[name] = {
                 command: serverConfig.command as string | undefined,
                 args: serverConfig.args as string[] | undefined,
                 env: serverConfig.env as Record<string, string | null> | undefined,
-                type: serverConfig.type as 'stdio' | 'http' | 'sse' | undefined,
+                type: normalizeType(serverConfig.type),
                 url: serverConfig.url as string | undefined,
                 headers: serverConfig.headers as Record<string, string> | undefined,
             };
@@ -132,4 +132,16 @@ function extractServers(
         sourceFormat,
         sourceWrapperKey: wrapperKey,
     };
+}
+
+/**
+ * Normalize transport type to lowercase
+ */
+function normalizeType(type: unknown): 'stdio' | 'http' | 'sse' | undefined {
+    if (typeof type !== 'string') return undefined;
+    const lower = type.toLowerCase();
+    if (lower === 'stdio' || lower === 'http' || lower === 'sse') {
+        return lower;
+    }
+    return undefined;
 }

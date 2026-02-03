@@ -1,86 +1,63 @@
 # Agent Tools
 
-Tools and utilities for AI coding agents.
+Monorepo for AI coding agent utilities.
 
 ## Packages
 
-### mcpget
+| Package | NPM | Description |
+|---------|-----|-------------|
+| [mcpm](./packages/cli) | `npx mcpm` | MCP server manager for 16+ agents |
 
-Install MCP server configurations to AI coding agents with one command.
+## mcpm
 
-```bash
-npx mcpget
-```
-
-### Usage
+Centralized MCP server configuration for AI coding agents.
 
 ```bash
-# Interactive mode
-npx mcpget
+# Interactive menu
+npx mcpm
 
-# Install from GitHub
-npx mcpget https://github.com/modelcontextprotocol/servers
-
-# Paste mode
-npx mcpget --paste
-```
-
-#### Example
-
-```
-$ npx mcpget https://github.com/modelcontextprotocol/servers
-
-┌   mcpget 
-│
-●  Detected 14 agent(s)
-●  Fetching from modelcontextprotocol/servers...
-◇  Found 4 server(s): filesystem, git, github, postgres
-│
-◆  Select tools to configure:
-│  ◼ Claude Code
-│  ◼ Cursor
-│  ◻ VS Code
-│
-◇  Backing up existing configs
-◇  Installing servers
-│
-●  Configuration complete!
-└
+# CLI commands
+npx mcpm list              # List servers in registry
+npx mcpm add               # Add server interactively
+npx mcpm sync              # Push to all agents
+npx mcpm import            # Pull from agents
+npx mcpm status            # Check sync status
 ```
 
 ### Supported Agents
 
-| Agent | Config Path | Wrapper Key |
-|-------|-------------|-------------|
-| Amp | `~/.config/amp/mcp.json` | `mcpServers` |
-| Antigravity | `~/.gemini/antigravity/mcp_config.json` | `mcpServers` |
-| Claude Code | `~/.claude/settings.json` | `mcpServers` |
-| Cline | `~/.cline/mcp.json` | `mcpServers` |
-| Codex (OpenAI) | `~/.codex/config.toml` | `mcp_servers` |
-| Continue | `~/.continue/config.yaml` | `mcpServers` |
-| Cursor | `~/.cursor/mcp.json` | `mcpServers` |
-| Factory Droid | `~/.factory/mcp.json` | `mcpServers` |
-| Gemini CLI | `~/.gemini/settings.json` | `mcpServers` |
-| GitHub Copilot CLI | `~/.copilot/mcp-config.json` | `mcpServers` |
-| Goose | `~/.config/goose/mcp.json` | `mcpServers` |
-| OpenCode | `~/.config/opencode/oh-my-opencode.json` | `mcp` |
-| Roo Code | `~/.roo/mcp.json` | `mcpServers` |
-| VS Code + Copilot | `~/Library/.../Code/User/mcp.json` | `servers` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
-| Zed | `~/.config/zed/settings.json` | `context_servers` |
+| Agent | Transport | Format |
+|-------|-----------|--------|
+| Claude Code, Cursor, Windsurf | stdio/http/sse | JSON |
+| Antigravity, Cline, Roo Code | stdio/http/sse | JSON |
+| VS Code + Copilot, GitHub Copilot CLI | stdio/http | JSON |
+| Continue, Goose, OpenCode | stdio/http | YAML |
+| Codex (OpenAI) | stdio | TOML |
+| Gemini CLI, Factory Droid, Zed | varies | varies |
 
 ## Development
 
 ```bash
 # Install dependencies
-pnpm install
+yarn install
 
-# Build
-cd packages/cli && pnpm run build
+# Build CLI package
+cd packages/cli && yarn build
 
 # Run locally
-node packages/cli/dist/cli.js
+yarn run dev
 ```
+
+## Publishing
+
+Each package is published independently:
+
+```bash
+cd packages/cli
+npm publish
+```
+
+For scoped publishing (e.g., `@lvmk/mcpm`), update `package.json` name accordingly.
 
 ## License
 

@@ -8,6 +8,7 @@ import { getAgentConfig } from '../agents.js';
 import { createJsonParser } from './json.js';
 import { createYamlParser } from './yaml.js';
 import { createTomlParser } from './toml.js';
+import { createXmlParser } from './xml.js';
 
 /**
  * Create a parser for a specific agent
@@ -20,6 +21,8 @@ export function createParser(agentType: AgentType): AgentParser {
             return createYamlParser(agentType);
         case 'toml':
             return createTomlParser(agentType);
+        case 'xml':
+            return createXmlParser(agentType);
         default:
             return createJsonParser(agentType);
     }

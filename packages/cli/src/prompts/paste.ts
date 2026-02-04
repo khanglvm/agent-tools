@@ -153,7 +153,7 @@ async function editServerConfig(
                 { value: 'url', label: `URL${edited.url ? ` (${edited.url})` : ''}` },
             ]),
             { value: 'env', label: `Environment (${Object.keys(edited.env || {}).length} vars)` },
-            { value: 'done', label: pc.green('Done editing') },
+            { value: 'done', label: 'Done editing' },
             { value: 'cancel', label: 'Cancel changes' },
         ];
 
@@ -306,18 +306,8 @@ async function showConfigConfirmation(
 
     // Show preview of all servers
     p.log.step('Configuration Preview:');
-    let hasEnvVars = false;
     for (const name of serverNames) {
         showServerPreview(name, parsed.servers[name]);
-        if (parsed.servers[name].env && Object.keys(parsed.servers[name].env).length > 0) {
-            hasEnvVars = true;
-        }
-    }
-
-    // Note about editing env if any exist
-    if (hasEnvVars) {
-        p.log.message('');
-        p.log.info(`${pc.yellow('Tip:')} Select "Edit configuration" if you need to modify environment variables`);
     }
 
     // For multiple servers, let user select which to edit
@@ -420,7 +410,7 @@ export async function showPastePrompt(installedAgents: AgentType[]) {
     let parsed: ParsedMcpConfig;
     try {
         parsed = parseConfig(input);
-        s.stop('Configuration parsed successfully');
+        s.stop(`Found ${Object.keys(parsed.servers).length} server(s): ${Object.keys(parsed.servers).join(', ')}`);
     } catch (err) {
         s.stop('Failed to parse configuration');
         p.log.error(err instanceof Error ? err.message : 'Unknown error');
@@ -430,24 +420,30 @@ export async function showPastePrompt(installedAgents: AgentType[]) {
     // Drain stdin buffer before showing next prompt
     await drainStdin();
 
-    // Show what we found
     const serverNames = Object.keys(parsed.servers);
-    p.log.info(`Detected format: ${parsed.sourceFormat.toUpperCase()} with "${parsed.sourceWrapperKey}" wrapper`);
-    p.log.info(`Found ${serverNames.length} server(s): ${serverNames.join(', ')}`);
+
+    // Prompt for env vars if any have null values (do this BEFORE confirmation
+    // so the user can review complete config with actual values)
+    const configWithEnv = await showEnvPrompts(parsed);
+
+    // If user cancelled during env prompts, exit
+    if (!configWithEnv) {
+        p.log.info('Cancelled');
+        return;
+    }
 
     // Confirmation step with preview and edit option
-    const confirmed = await showConfigConfirmation(parsed);
+    const confirmed = await showConfigConfirmation(configWithEnv);
+
+    // If user cancelled, exit
     if (!confirmed) {
         p.log.info('Cancelled');
         return;
     }
 
-    // Prompt for env vars if any have null values
-    const configWithEnv = await showEnvPrompts(confirmed);
-
     // Drain again before tool selector
     await drainStdin();
 
     // Select tools to install
-    await showToolSelector(installedAgents, configWithEnv);
+    await showToolSelector(installedAgents, confirmed);
 }

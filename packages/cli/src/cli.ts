@@ -10,7 +10,7 @@ import { runCommand } from './commands/index.js';
 async function main() {
     const args = process.argv.slice(2);
 
-    p.intro(pc.bgCyan(pc.black(' mcpm ')));
+    p.intro(pc.bgCyan(pc.black(' Model Context Protocol Manager ')));
 
     // Detect installed agents
     const installedAgents = detectInstalledAgents();
@@ -22,7 +22,6 @@ async function main() {
         process.exit(0);
     }
 
-    p.log.info(`Detected ${installedAgents.length} agent(s): ${installedAgents.map(a => agents[a].displayName).join(', ')}`);
 
     // Parse args
     if (args.length === 0) {
@@ -35,8 +34,33 @@ async function main() {
         // Build mode
         await runBuildMode();
     } else if (args[0].startsWith('http')) {
-        // GitHub URL
-        await showGitHubPrompt(installedAgents, args[0]);
+        // GitHub URL with optional --env:KEY=VALUE and --note:"text" args
+        const url = args[0];
+        const preEnv: Record<string, string> = {};
+        let note: string | undefined;
+
+        // Parse --env:KEY=VALUE and --note:"text" args
+        for (let i = 1; i < args.length; i++) {
+            const arg = args[i];
+            if (arg.startsWith('--env:')) {
+                const envPart = arg.slice(6); // Remove "--env:"
+                const eqIndex = envPart.indexOf('=');
+                if (eqIndex > 0) {
+                    const key = envPart.slice(0, eqIndex);
+                    const value = envPart.slice(eqIndex + 1);
+                    preEnv[key] = value;
+                }
+            } else if (arg.startsWith('--note:')) {
+                note = arg.slice(7); // Remove "--note:"
+            }
+        }
+
+        const completed = await showGitHubPrompt(installedAgents, url, preEnv, note);
+
+        // If cancelled, show interactive menu instead of exiting
+        if (!completed) {
+            await showMenu(installedAgents);
+        }
     } else {
         // Try as CLI command (list, add, remove, sync, status)
         const handled = await runCommand(args[0], args.slice(1));
@@ -46,7 +70,7 @@ async function main() {
         }
     }
 
-    p.outro('Done!');
+    p.outro('Exit');
 }
 
 main().catch((err) => {

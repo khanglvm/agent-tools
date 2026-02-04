@@ -1,4 +1,5 @@
 import * as p from '@clack/prompts';
+import pc from 'picocolors';
 import type { ParsedMcpConfig, EnvVarSchema } from '../types.js';
 import { storeSecret, isKeychainAvailable } from '../registry/keychain.js';
 
@@ -85,31 +86,54 @@ function detectSecretValue(value: string): { isSecret: boolean; provider?: strin
 }
 
 /**
- * Prompt for env variables that have null values (require user input)
+ * Prompt for all env variables, pre-filling existing values for editing
+ * @param preconfiguredKeys - Set of keys that were pre-configured from CLI
  */
-export async function showEnvPrompts(config: ParsedMcpConfig): Promise<ParsedMcpConfig> {
+export async function showEnvPrompts(
+    config: ParsedMcpConfig,
+    preconfiguredKeys?: Set<string>
+): Promise<ParsedMcpConfig | null> {
     const result = { ...config, servers: { ...config.servers } };
     const keychainAvailable = await isKeychainAvailable();
 
     for (const [serverName, serverConfig] of Object.entries(config.servers)) {
         if (!serverConfig.env) continue;
 
-        const envNeeded = Object.entries(serverConfig.env).filter(([_, value]) => {
-            if (value === null) return true;
-            if (typeof value === 'object' && value !== null && 'value' in value) {
-                return (value as EnvVarSchema).value === null;
+        const envEntries = Object.entries(serverConfig.env);
+        if (envEntries.length === 0) continue;
+
+        const newEnv: Record<string, string> = {};
+
+        // Separate entries into pre-filled and missing
+        const missingEntries: [string, unknown][] = [];
+
+        for (const [key, schema] of envEntries) {
+            const isExtended = typeof schema === 'object' && schema !== null && 'value' in schema;
+
+            // Get existing value
+            let existingValue: string | null = null;
+            if (typeof schema === 'string') {
+                existingValue = schema;
+            } else if (isExtended && (schema as EnvVarSchema).value !== null) {
+                existingValue = String((schema as EnvVarSchema).value);
             }
-            return false;
-        });
 
-        if (envNeeded.length === 0) continue;
+            if (existingValue) {
+                // Pre-filled: keep as-is
+                newEnv[key] = existingValue;
+            } else {
+                // Missing: need to prompt
+                missingEntries.push([key, schema]);
+            }
+        }
 
-        p.log.info(`${serverName} requires ${envNeeded.length} environment variable(s):`);
+        // Only show prompt header if there are missing values
+        if (missingEntries.length > 0) {
+            p.log.info(`Configure ${serverName} environment (${missingEntries.length} missing value${missingEntries.length > 1 ? 's' : ''}):`);
+        }
 
-        const newEnv: Record<string, string> = { ...serverConfig.env as Record<string, string> };
-
-        for (const [key, schema] of envNeeded) {
-            const isExtended = typeof schema === 'object' && schema !== null;
+        for (const [key, schema] of missingEntries) {
+            const isExtended = typeof schema === 'object' && schema !== null && 'value' in schema;
             const description = isExtended ? (schema as EnvVarSchema).description : undefined;
             const helpUrl = isExtended ? (schema as EnvVarSchema).helpUrl : undefined;
 
@@ -131,16 +155,23 @@ export async function showEnvPrompts(config: ParsedMcpConfig): Promise<ParsedMcp
 
             let value: string | symbol;
 
+            // Show hint for preconfigured keys
+            const isPreconfigured = preconfiguredKeys?.has(key);
+            const keyLabel = isPreconfigured
+                ? `${key} ${pc.dim('(preconfigured)')}`
+                : key;
+
             if (isHidden) {
                 value = await p.password({
-                    message: `${key}:`,
+                    message: `${keyLabel}:`,
                     validate(v) {
                         if (!v) return `${key} is required`;
                     },
                 });
             } else {
                 value = await p.text({
-                    message: `${key}:`,
+                    message: `${keyLabel}:`,
+                    placeholder: 'Enter value...',
                     validate(v) {
                         if (!v) return `${key} is required`;
                     },
@@ -149,7 +180,7 @@ export async function showEnvPrompts(config: ParsedMcpConfig): Promise<ParsedMcp
 
             if (p.isCancel(value)) {
                 p.log.info('Cancelled');
-                return result;
+                return null;
             }
 
             // Check if entered value looks like a secret

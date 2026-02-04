@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AgentType, ParsedMcpConfig, McpServerConfig } from '../types.js';
 import { getAgentConfig } from '../agents.js';
+import { createParser } from '../parsers/factory.js';
 
 /**
  * Inject MCP configuration into an agent's config file
@@ -11,6 +12,14 @@ export async function injectConfig(
     config: ParsedMcpConfig
 ): Promise<void> {
     const agentConfig = getAgentConfig(agentType);
+
+    // For XML format (JetBrains), use the parser directly
+    if (agentConfig.configFormat === 'xml') {
+        const parser = createParser(agentType);
+        await parser.write(config.servers, { createIfMissing: true, backup: true, merge: true });
+        return;
+    }
+
     const configPath = agentConfig.mcpConfigPath;
 
     // Ensure directory exists
@@ -203,3 +212,55 @@ function transformForAgent(
     return result;
 }
 
+/**
+ * Inject MCP configuration into an agent's LOCAL (project-scope) config file
+ */
+export async function injectLocalConfig(
+    agentType: AgentType,
+    config: ParsedMcpConfig
+): Promise<void> {
+    const agentConfig = getAgentConfig(agentType);
+
+    if (!agentConfig.supportsLocalConfig || !agentConfig.localConfigPath) {
+        throw new Error(`${agentConfig.displayName} does not support project-scope config`);
+    }
+
+    const configPath = agentConfig.localConfigPath;
+
+    // Ensure directory exists
+    const dir = dirname(configPath);
+    if (dir && !existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+    }
+
+    // Transform servers for this agent
+    const transformedServers = transformForAgent(agentType, config.servers);
+
+    // Read existing config or create new
+    let existingConfig: Record<string, unknown> = {};
+
+    if (existsSync(configPath)) {
+        try {
+            const content = readFileSync(configPath, 'utf-8');
+            existingConfig = JSON.parse(content);
+        } catch {
+            // If parse fails, start fresh
+            existingConfig = {};
+        }
+    }
+
+    // Merge servers
+    const wrapperKey = agentConfig.wrapperKey;
+    const existingServers = (existingConfig[wrapperKey] as Record<string, unknown>) || {};
+
+    const newConfig = {
+        ...existingConfig,
+        [wrapperKey]: {
+            ...existingServers,
+            ...transformedServers,
+        },
+    };
+
+    // Write config
+    writeFileSync(configPath, JSON.stringify(newConfig, null, 2) + '\n');
+}

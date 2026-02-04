@@ -2,6 +2,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import type { AgentConfig, AgentType } from './types.js';
+import { getJetBrainsConfigDir, detectJetBrainsIDEs } from './parsers/xml.js';
 
 const home = homedir();
 const configHome = process.env.XDG_CONFIG_HOME || join(home, '.config');
@@ -13,6 +14,16 @@ const claudeHome = process.env.CLAUDE_CONFIG_DIR?.trim() || join(home, '.claude'
  * Ported from vercel-labs/skills
  */
 export const agents: Record<AgentType, AgentConfig> = {
+    'amazon-q': {
+        name: 'amazon-q',
+        displayName: 'Amazon Q Developer',
+        configDir: join(home, '.aws/amazonq'),
+        mcpConfigPath: join(home, '.aws/amazonq/mcp.json'),
+        wrapperKey: 'mcpServers',
+        detectInstalled: () => existsSync(join(home, '.aws/amazonq')),
+        supportsLocalConfig: true,
+        localConfigPath: '.amazonq/mcp.json',
+    },
     amp: {
         name: 'amp',
         displayName: 'Amp',
@@ -28,6 +39,8 @@ export const agents: Record<AgentType, AgentConfig> = {
         mcpConfigPath: join(home, '.gemini/antigravity/mcp_config.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(join(home, '.gemini/antigravity')),
+        supportsLocalConfig: true,
+        localConfigPath: '.gemini/mcp.json',
     },
     'claude-code': {
         name: 'claude-code',
@@ -36,6 +49,17 @@ export const agents: Record<AgentType, AgentConfig> = {
         mcpConfigPath: join(claudeHome, 'settings.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(claudeHome),
+        supportsLocalConfig: true,
+        localConfigPath: '.mcp.json',
+    },
+    'claude-desktop': {
+        name: 'claude-desktop',
+        displayName: 'Claude Desktop',
+        configDir: join(home, 'Library/Application Support/Claude'),
+        mcpConfigPath: join(home, 'Library/Application Support/Claude/claude_desktop_config.json'),
+        wrapperKey: 'mcpServers',
+        detectInstalled: () => existsSync(join(home, 'Library/Application Support/Claude')),
+        supportsLocalConfig: false, // Claude Desktop only supports global config
     },
     cline: {
         name: 'cline',
@@ -44,15 +68,27 @@ export const agents: Record<AgentType, AgentConfig> = {
         mcpConfigPath: join(home, '.cline/mcp.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(join(home, '.cline')),
+        supportsLocalConfig: true,
+        localConfigPath: '.vscode/mcp.json',
     },
     codex: {
         name: 'codex',
-        displayName: 'Codex (OpenAI)',
+        displayName: 'Codex (CLI / Desktop)',
         configDir: codexHome,
         mcpConfigPath: join(codexHome, 'config.toml'),
         wrapperKey: 'mcp_servers',
         configFormat: 'toml',
         detectInstalled: () => existsSync(codexHome),
+        supportsLocalConfig: true,
+        localConfigPath: '.codex/config.toml',
+    },
+    cody: {
+        name: 'cody',
+        displayName: 'Sourcegraph Cody',
+        configDir: join(configHome, 'cody'),
+        mcpConfigPath: join(configHome, 'cody/mcp_servers.json'),
+        wrapperKey: 'cody.mcpServers',
+        detectInstalled: () => existsSync(join(configHome, 'cody')),
     },
     continue: {
         name: 'continue',
@@ -70,6 +106,8 @@ export const agents: Record<AgentType, AgentConfig> = {
         mcpConfigPath: join(home, '.cursor/mcp.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(join(home, '.cursor')),
+        supportsLocalConfig: true,
+        localConfigPath: '.cursor/mcp.json',
     },
     droid: {
         name: 'droid',
@@ -103,6 +141,19 @@ export const agents: Record<AgentType, AgentConfig> = {
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(join(configHome, 'goose')),
     },
+    'jetbrains-ai': {
+        name: 'jetbrains-ai',
+        displayName: 'JetBrains AI Assistant',
+        configDir: getJetBrainsConfigDir(),
+        // Dynamically get config path from first detected IDE
+        get mcpConfigPath(): string {
+            const ides = detectJetBrainsIDEs();
+            return ides.length > 0 ? ides[0].configPath : '';
+        },
+        wrapperKey: 'mcpServers',
+        configFormat: 'xml',
+        detectInstalled: () => detectJetBrainsIDEs().length > 0,
+    },
     opencode: {
         name: 'opencode',
         displayName: 'OpenCode',
@@ -119,6 +170,8 @@ export const agents: Record<AgentType, AgentConfig> = {
         mcpConfigPath: join(home, '.roo/mcp.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(join(home, '.roo')),
+        supportsLocalConfig: true,
+        localConfigPath: '.roo/mcp.json',
     },
     'vscode-copilot': {
         name: 'vscode-copilot',
@@ -127,6 +180,8 @@ export const agents: Record<AgentType, AgentConfig> = {
         mcpConfigPath: join(home, 'Library/Application Support/Code/User/mcp.json'),
         wrapperKey: 'servers',
         detectInstalled: () => existsSync(join(home, 'Library/Application Support/Code')),
+        supportsLocalConfig: true,
+        localConfigPath: '.vscode/mcp.json',
     },
     windsurf: {
         name: 'windsurf',
@@ -167,4 +222,13 @@ export function getAgentConfig(type: AgentType): AgentConfig {
  */
 export function getAllAgentTypes(): AgentType[] {
     return Object.keys(agents) as AgentType[];
+}
+
+/**
+ * Get agents that support local (project-scope) config
+ */
+export function getAgentsWithLocalSupport(): AgentType[] {
+    return Object.entries(agents)
+        .filter(([_, config]) => config.supportsLocalConfig)
+        .map(([type]) => type as AgentType);
 }

@@ -3,34 +3,98 @@ import pc from 'picocolors';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import type { AgentType, ParsedMcpConfig, McpServerConfig } from '../types.js';
-import { agents, getAgentConfig } from '../agents.js';
+import type { AgentType, ParsedMcpConfig, McpServerConfig, InstallScope } from '../types.js';
+import { agents, getAgentConfig, getAgentsWithLocalSupport } from '../agents.js';
 import { showSecurityWarning } from './security.js';
-import { injectConfig } from '../core/injector.js';
+import { injectConfig, injectLocalConfig } from '../core/injector.js';
 import { addServer } from '../registry/store.js';
 import type { RegistryServer } from '../registry/types.js';
 import { multiselectWithAll } from './shared.js';
 
 /**
- * Show tool selector (multiselect)
+ * Show tool selector (multiselect) with scope selection
  */
 export async function showToolSelector(
     installedAgents: AgentType[],
     config: ParsedMcpConfig
 ) {
-    const items = installedAgents.map((type) => ({
+    // Step 1: Scope selection
+    const scope = await p.select({
+        message: 'Where would you like to install?',
+        options: [
+            { value: 'global', label: 'Global', hint: 'available in all projects' },
+            { value: 'project', label: 'Project', hint: 'current directory only' },
+        ],
+        initialValue: 'global',
+    }) as InstallScope | symbol;
+
+    if (p.isCancel(scope)) {
+        p.log.info('Cancelled');
+        return;
+    }
+
+    // Filter agents based on scope support
+    const localSupportAgents = getAgentsWithLocalSupport();
+    const availableAgents = scope === 'project'
+        ? installedAgents.filter(a => localSupportAgents.includes(a))
+        : installedAgents;
+
+    // Show warning if no agents support local config
+    if (scope === 'project' && availableAgents.length === 0) {
+        p.log.warn('No installed agents support project-scope config.');
+        const unsupportedNames = installedAgents
+            .filter(a => !localSupportAgents.includes(a))
+            .map(a => agents[a].displayName)
+            .join(', ');
+        p.log.info(`Unsupported: ${unsupportedNames}`);
+        return;
+    }
+
+    // Step 2: Build multiselect items with registry toggle at top
+    const registryItem = {
+        value: '__registry__' as const,
+        label: 'Add to registry',
+        hint: scope === 'global' ? 'save for sync later' : 'save configuration',
+    };
+
+    const agentItems = availableAgents.map((type) => ({
         value: type,
         label: agents[type].displayName,
-        hint: agents[type].wrapperKey,
+        hint: scope === 'project' ? agents[type].localConfigPath : agents[type].wrapperKey,
     }));
 
-    const selectedTools = await multiselectWithAll({
-        message: 'Select tools to configure:',
-        items,
+    // Show which agents don't support local config (as info)
+    if (scope === 'project') {
+        const unsupported = installedAgents.filter(a => !localSupportAgents.includes(a));
+        if (unsupported.length > 0) {
+            const names = unsupported.map(a => agents[a].displayName).join(', ');
+            p.log.info(pc.dim(`Global-only agents (skipped): ${names}`));
+        }
+    }
+
+    const allItems = [registryItem, ...agentItems];
+    const initialValues = scope === 'global'
+        ? ['__registry__']
+        : [];
+
+    const selectedItems = await p.multiselect({
+        message: 'Select targets: (space: toggle, a: all, i: invert)',
+        options: allItems,
+        initialValues,
+        required: true,
     });
 
-    if (selectedTools === null) {
+    if (p.isCancel(selectedItems)) {
         p.log.info('Cancelled');
+        return;
+    }
+
+    const selected = selectedItems as string[];
+    const addToRegistry = selected.includes('__registry__');
+    const selectedTools = selected.filter(s => s !== '__registry__') as AgentType[];
+
+    if (selectedTools.length === 0 && !addToRegistry) {
+        p.log.warn('No targets selected.');
         return;
     }
 
@@ -44,64 +108,109 @@ export async function showToolSelector(
     // Use tasks for structured installation
     const serverNames = Object.keys(config.servers).join(', ');
 
-    await p.tasks([
-        {
+    const tasks: Parameters<typeof p.tasks>[0] = [];
+    // Track failed installations for final summary
+    const failedInstalls: { agent: string; error: string }[] = [];
+
+    // Registry task (conditional)
+    if (addToRegistry) {
+        tasks.push({
             title: `Saving to registry`,
-            task: async (message) => {
+            task: async () => {
                 for (const [name, serverConfig] of Object.entries(config.servers)) {
                     const registryServer = toRegistryServer(name, serverConfig);
                     addServer(registryServer);
                 }
                 return `Saved ${Object.keys(config.servers).length} server(s) to registry`;
             },
-        },
-        {
-            title: `Backing up existing configs`,
-            task: async (message) => {
-                const backedUp: string[] = [];
-                for (const tool of selectedTools as AgentType[]) {
-                    const agentConfig = getAgentConfig(tool);
-                    if (existsSync(agentConfig.mcpConfigPath)) {
-                        await backupConfig(tool);
-                        backedUp.push(agents[tool].displayName);
-                    }
-                }
-                if (backedUp.length > 0) {
-                    return `Backed up: ${backedUp.join(', ')}`;
-                }
-                return 'No existing configs to backup';
-            },
-        },
-        {
-            title: `Installing servers: ${serverNames}`,
-            task: async (message) => {
+        });
+    }
+
+    // Combined backup + install task
+    if (selectedTools.length > 0) {
+        const scopeLabel = scope === 'project' ? 'project config' : 'agents';
+        tasks.push({
+            title: `Installing to ${scopeLabel}: ${serverNames}`,
+            task: async () => {
                 const results: string[] = [];
-                for (const tool of selectedTools as AgentType[]) {
+                for (const tool of selectedTools) {
+                    const agentConfig = getAgentConfig(tool);
+                    const configPath = scope === 'project'
+                        ? agentConfig.localConfigPath
+                        : agentConfig.mcpConfigPath;
+
+                    const lines: string[] = [`${agents[tool].displayName}:`];
+
+                    // Backup existing config (global scope only)
+                    if (scope === 'global' && existsSync(agentConfig.mcpConfigPath)) {
+                        const backupPath = await backupConfig(tool);
+                        if (backupPath) {
+                            lines.push(`    Backed up: ${backupPath}`);
+                        }
+                    }
+
+                    // Install
                     try {
-                        await injectConfig(tool, config);
-                        results.push(`${pc.green('✓')} ${agents[tool].displayName}`);
+                        if (scope === 'project') {
+                            await injectLocalConfig(tool, config);
+                        } else {
+                            await injectConfig(tool, config);
+                        }
+                        lines.push(`    Config: ${configPath}`);
+                        lines.push(`    Status: ${pc.green('Success')}`);
                     } catch (err) {
                         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-                        results.push(`${pc.red('✗')} ${agents[tool].displayName}: ${errorMsg}`);
+                        lines.push(`    Config: ${configPath || 'N/A'}`);
+                        lines.push(`    Status: ${pc.red(errorMsg)}`);
+                        failedInstalls.push({ agent: agents[tool].displayName, error: errorMsg });
                     }
+
+                    results.push(lines.join('\n'));
                 }
                 return results.join('\n');
             },
-        },
-    ]);
+        });
+    }
 
-    p.log.success('Configuration complete!');
-    p.log.info(`Servers installed: ${pc.cyan(serverNames)}`);
+    if (tasks.length > 0) {
+        await p.tasks(tasks);
+    }
+
+    // Show appropriate completion status
+    if (failedInstalls.length > 0) {
+        if (failedInstalls.length === selectedTools.length) {
+            // All failed
+            p.log.error('Configuration failed!');
+        } else {
+            // Partial failure
+            p.log.warn('Configuration completed with errors');
+        }
+        // List failed agents
+        for (const { agent, error } of failedInstalls) {
+            p.log.error(`${pc.red('✗')} ${agent}: ${error}`);
+        }
+    } else {
+        p.log.success('Configuration complete!');
+    }
+
+    if (selectedTools.length > 0 && failedInstalls.length < selectedTools.length) {
+        const successCount = selectedTools.length - failedInstalls.length;
+        p.log.info(`Servers installed: ${pc.cyan(serverNames)} (${successCount}/${selectedTools.length} agents)`);
+    }
+    if (addToRegistry) {
+        p.log.info(`Added to registry: ${pc.cyan(serverNames)}`);
+    }
 }
 
 /**
  * Backup existing config before overwrite
+ * Returns the backup path if successful
  */
-async function backupConfig(agentType: AgentType): Promise<void> {
+async function backupConfig(agentType: AgentType): Promise<string | null> {
     const agentConfig = getAgentConfig(agentType);
     const configPath = agentConfig.mcpConfigPath;
 
-    if (!existsSync(configPath)) return;
+    if (!existsSync(configPath)) return null;
 
     // Create backup directory
     const backupDir = join(homedir(), '.mcpm', 'backups');
@@ -109,12 +218,15 @@ async function backupConfig(agentType: AgentType): Promise<void> {
         mkdirSync(backupDir, { recursive: true });
     }
 
-    // Create timestamped backup
+    // Create timestamped backup with original file extension
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupPath = join(backupDir, `${agentType}-${timestamp}.json`);
+    const ext = configPath.includes('.') ? configPath.slice(configPath.lastIndexOf('.')) : '.json';
+    const backupPath = join(backupDir, `${agentType}-${timestamp}${ext}`);
 
     const content = readFileSync(configPath, 'utf-8');
     writeFileSync(backupPath, content);
+
+    return backupPath;
 }
 
 /**
@@ -122,6 +234,7 @@ async function backupConfig(agentType: AgentType): Promise<void> {
  */
 function toRegistryServer(name: string, config: McpServerConfig): RegistryServer {
     const transport = config.type || 'stdio';
+    const createdAt = new Date().toISOString();
 
     if (transport === 'stdio') {
         return {
@@ -130,6 +243,7 @@ function toRegistryServer(name: string, config: McpServerConfig): RegistryServer
             command: config.command!,
             args: config.args,
             env: config.env as Record<string, string>,
+            createdAt,
         };
     } else {
         return {
@@ -137,6 +251,8 @@ function toRegistryServer(name: string, config: McpServerConfig): RegistryServer
             transport: transport as 'http' | 'sse',
             url: config.url!,
             headers: config.headers,
+            createdAt,
         };
     }
 }
+

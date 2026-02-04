@@ -2,22 +2,31 @@
  * Supported AI agent types
  */
 export type AgentType =
+    | 'amazon-q'
     | 'amp'
     | 'antigravity'
     | 'claude-code'
+    | 'claude-desktop'
     | 'cline'
     | 'codex'
+    | 'cody'
     | 'continue'
     | 'cursor'
     | 'droid'
     | 'gemini-cli'
     | 'github-copilot'
     | 'goose'
+    | 'jetbrains-ai'
     | 'opencode'
     | 'roo'
     | 'vscode-copilot'
     | 'windsurf'
     | 'zed';
+
+/**
+ * Installation scope for MCP configs
+ */
+export type InstallScope = 'global' | 'project';
 
 /**
  * Agent configuration
@@ -28,16 +37,21 @@ export interface AgentConfig {
     configDir: string;
     mcpConfigPath: string;
     wrapperKey: WrapperKey;
-    configFormat?: 'json' | 'yaml' | 'toml';
+    configFormat?: 'json' | 'yaml' | 'toml' | 'xml';
     transformCommand?: boolean; // For OpenCode special format
     detectInstalled: () => boolean;
+    /** Whether this agent supports project-scope (local) config */
+    supportsLocalConfig?: boolean;
+    /** Path to local config file relative to project root */
+    localConfigPath?: string;
 }
 
 /**
  * MCP config wrapper keys used by different tools
  */
 export type WrapperKey =
-    | 'mcpServers'     // Claude, Cursor, Windsurf, etc.
+    | 'cody.mcpServers' // Sourcegraph Cody
+    | 'mcpServers'     // Claude, Cursor, Windsurf, Amazon Q, etc.
     | 'servers'        // VS Code + Copilot
     | 'context_servers' // Zed
     | 'mcp'            // OpenCode

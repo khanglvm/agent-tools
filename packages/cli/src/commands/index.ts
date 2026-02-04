@@ -255,11 +255,13 @@ Options:
   --paste                 Paste JSON/YAML configuration
   --build                 Build configuration step-by-step
   <github-url>            Extract from GitHub repository
+  --env:KEY=VALUE         Pre-configure environment variable
 
 Examples:
   mcpm add
   mcpm sync
   mcpm sync github filesystem
   mcpm rm github
+  mcpm https://github.com/user/repo --env:API_KEY=abc123
 `);
 }

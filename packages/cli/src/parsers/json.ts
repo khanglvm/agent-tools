@@ -13,6 +13,35 @@ import type { AgentParser, AgentMcpConfig, WriteOptions } from './types.js';
 import { getAgentConfig } from '../agents.js';
 
 /**
+ * Get nested value from object using dotted key (e.g., 'cody.mcpServers')
+ */
+function getNestedValue(obj: Record<string, unknown>, key: string): unknown {
+    const parts = key.split('.');
+    let current: unknown = obj;
+    for (const part of parts) {
+        if (current === null || typeof current !== 'object') return undefined;
+        current = (current as Record<string, unknown>)[part];
+    }
+    return current;
+}
+
+/**
+ * Set nested value in object using dotted key (e.g., 'cody.mcpServers')
+ */
+function setNestedValue(obj: Record<string, unknown>, key: string, value: unknown): void {
+    const parts = key.split('.');
+    let current = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!(part in current) || typeof current[part] !== 'object') {
+            current[part] = {};
+        }
+        current = current[part] as Record<string, unknown>;
+    }
+    current[parts[parts.length - 1]] = value;
+}
+
+/**
  * Create a JSON parser for a specific agent
  */
 export function createJsonParser(agentType: AgentType): AgentParser {
@@ -99,14 +128,13 @@ export function createJsonParser(agentType: AgentType): AgentParser {
 
             // Merge or replace
             const wrapperKey = agentConfig.wrapperKey;
-            const existingServers = (existing[wrapperKey] as Record<string, unknown>) || {};
+            const existingServers = (getNestedValue(existing, wrapperKey) as Record<string, unknown>) || {};
 
-            const newConfig = {
-                ...existing,
-                [wrapperKey]: merge
-                    ? { ...existingServers, ...transformedServers }
-                    : transformedServers,
-            };
+            // For dotted keys, we need to set nested value
+            const newConfig = { ...existing };
+            setNestedValue(newConfig, wrapperKey, merge
+                ? { ...existingServers, ...transformedServers }
+                : transformedServers);
 
             writeFileSync(configPath, JSON.stringify(newConfig, null, 2) + '\n');
         },
@@ -125,13 +153,13 @@ export function createJsonParser(agentType: AgentType): AgentParser {
                 const content = readFileSync(configPath, 'utf-8');
                 const raw = JSON.parse(content);
                 const wrapperKey = agentConfig.wrapperKey;
-                const servers = (raw[wrapperKey] as Record<string, unknown>) || {};
+                const servers = (getNestedValue(raw, wrapperKey) as Record<string, unknown>) || {};
 
                 for (const name of names) {
                     delete servers[name];
                 }
 
-                raw[wrapperKey] = servers;
+                setNestedValue(raw, wrapperKey, servers);
                 writeFileSync(configPath, JSON.stringify(raw, null, 2) + '\n');
             } catch {
                 // Ignore errors
@@ -148,7 +176,7 @@ function extractServers(
     raw: Record<string, unknown>
 ): Record<string, McpServerConfig> {
     const wrapperKey = agentConfig.wrapperKey;
-    const rawServers = (raw[wrapperKey] as Record<string, unknown>) || {};
+    const rawServers = (getNestedValue(raw, wrapperKey) as Record<string, unknown>) || {};
     const servers: Record<string, McpServerConfig> = {};
 
     for (const [name, rawServer] of Object.entries(rawServers)) {

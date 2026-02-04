@@ -22,6 +22,18 @@ npx mcpm add               # Add server interactively
 npx mcpm sync              # Push to all agents
 npx mcpm import            # Pull from agents
 npx mcpm status            # Check sync status
+
+# Install from GitHub URL
+npx mcpm https://github.com/owner/repo
+
+# Pre-configure environment variables
+npx mcpm https://github.com/owner/repo \
+  --env:API_KEY=your_key \
+  --env:API_URL=https://api.example.com
+
+# Add a note for guidance
+npx mcpm https://github.com/owner/repo \
+  --note:"Get API key from https://example.com/settings"
 ```
 
 ### Supported Agents

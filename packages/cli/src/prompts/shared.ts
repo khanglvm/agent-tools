@@ -4,6 +4,15 @@
 
 import * as p from '@clack/prompts';
 
+/**
+ * Pluralize a word based on count
+ * @example plural(1, 'server') => '1 server'
+ * @example plural(2, 'server') => '2 servers'
+ */
+export function plural(count: number, word: string, pluralWord?: string): string {
+    const form = count === 1 ? word : (pluralWord || `${word}s`);
+    return `${count} ${form}`;
+}
 interface SelectItem {
     value: string;
     label: string;

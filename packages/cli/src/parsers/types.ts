@@ -43,8 +43,8 @@ export interface AgentParser {
     /** Agent type this parser handles */
     readonly agent: AgentType;
 
-    /** Config format: json, yaml, or toml */
-    readonly format: 'json' | 'yaml' | 'toml';
+    /** Config format: json, yaml, toml, or xml */
+    readonly format: 'json' | 'yaml' | 'toml' | 'xml';
 
     /** Read MCP servers from agent config */
     read(): Promise<AgentMcpConfig>;

@@ -179,13 +179,13 @@ function normalizeServer(
         };
     }
 
-    // Standard format
+    // Standard format - handle serverUrl as alias for url (used by Antigravity/Gemini)
     return {
         command: server.command as string,
         args: server.args as string[],
         env: server.env as Record<string, string>,
         type: server.type as 'stdio' | 'http' | 'sse',
-        url: server.url as string,
+        url: (server.url || server.serverUrl) as string,
         headers: server.headers as Record<string, string>,
     };
 }

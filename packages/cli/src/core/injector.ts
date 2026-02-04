@@ -53,6 +53,19 @@ export async function injectConfig(
 
 /**
  * Transform servers for specific agent format
+ * 
+ * Remote transport field mappings (from research):
+ * - Antigravity: serverUrl, headers
+ * - Gemini CLI: httpUrl, headers  
+ * - Claude Code: type: "http", url, headers
+ * - Cursor: type: "sse", url
+ * - Windsurf: serverUrl, transport: "sse", headers
+ * - Cline/Roo: type: "sse", url
+ * - VS Code Copilot: type: "sse", url, headers (always needs type field)
+ * - Continue: url, transport: "sse" (YAML)
+ * - Goose: url, type: "sse" (YAML)
+ * - OpenCode: command[], environment, url, type
+ * - Standard fallback: url only
  */
 function transformForAgent(
     agentType: AgentType,
@@ -62,6 +75,8 @@ function transformForAgent(
     const result: Record<string, unknown> = {};
 
     for (const [name, server] of Object.entries(servers)) {
+        const isStdio = server.command || server.type === 'stdio';
+
         if (agentConfig.transformCommand) {
             // OpenCode format: command is array, env -> environment
             result[name] = {
@@ -71,24 +86,120 @@ function transformForAgent(
                 ...(server.url && { url: server.url }),
             };
         } else if (agentType === 'zed') {
-            // Zed format: slightly different structure
+            // Zed: only stdio, no remote support
             result[name] = {
                 command: server.command,
                 args: server.args,
                 env: server.env,
             };
+        } else if (agentType === 'vscode-copilot') {
+            // VS Code Copilot: always requires type field
+            if (isStdio) {
+                result[name] = {
+                    type: 'stdio',
+                    command: server.command,
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    type: server.type || 'sse',
+                    url: server.url,
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
+        } else if (agentType === 'antigravity') {
+            // Antigravity: serverUrl for remote (no type field)
+            if (isStdio) {
+                result[name] = {
+                    command: server.command,
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    serverUrl: server.url,
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
+        } else if (agentType === 'gemini-cli') {
+            // Gemini CLI: httpUrl for remote
+            if (isStdio) {
+                result[name] = {
+                    command: server.command,
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    httpUrl: server.url,
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
+        } else if (agentType === 'windsurf') {
+            // Windsurf: serverUrl + transport for remote
+            if (isStdio) {
+                result[name] = {
+                    command: server.command,
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    serverUrl: server.url,
+                    transport: server.type || 'sse',
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
+        } else if (agentType === 'claude-code') {
+            // Claude Code: type: "http" for remote
+            if (isStdio) {
+                result[name] = {
+                    command: server.command,
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    type: server.type || 'http',
+                    url: server.url,
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
+        } else if (agentType === 'cursor' || agentType === 'cline' || agentType === 'roo') {
+            // Cursor, Cline, Roo: type: "sse" for remote
+            if (isStdio) {
+                result[name] = {
+                    command: server.command,
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    type: server.type || 'sse',
+                    url: server.url,
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
         } else {
-            // Standard format
-            result[name] = {
-                ...(server.command && { command: server.command }),
-                ...(server.args && { args: server.args }),
-                ...(server.env && { env: server.env }),
-                ...(server.type && { type: server.type }),
-                ...(server.url && { url: server.url }),
-                ...(server.headers && { headers: server.headers }),
-            };
+            // Default format for other agents (amp, droid, github-copilot, goose, etc.)
+            // Stdio: command, args, env
+            // Remote: url only (no type field)
+            if (isStdio) {
+                result[name] = {
+                    ...(server.command && { command: server.command }),
+                    ...(server.args?.length && { args: server.args }),
+                    ...(server.env && { env: server.env }),
+                };
+            } else {
+                result[name] = {
+                    url: server.url,
+                    ...(server.headers && { headers: server.headers }),
+                };
+            }
         }
     }
 
     return result;
 }
+

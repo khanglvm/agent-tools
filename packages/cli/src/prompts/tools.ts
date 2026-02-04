@@ -9,6 +9,7 @@ import { showSecurityWarning } from './security.js';
 import { injectConfig } from '../core/injector.js';
 import { addServer } from '../registry/store.js';
 import type { RegistryServer } from '../registry/types.js';
+import { multiselectWithAll } from './shared.js';
 
 /**
  * Show tool selector (multiselect)
@@ -17,19 +18,18 @@ export async function showToolSelector(
     installedAgents: AgentType[],
     config: ParsedMcpConfig
 ) {
-    const options = installedAgents.map((type) => ({
+    const items = installedAgents.map((type) => ({
         value: type,
         label: agents[type].displayName,
         hint: agents[type].wrapperKey,
     }));
 
-    const selectedTools = await p.multiselect({
+    const selectedTools = await multiselectWithAll({
         message: 'Select tools to configure:',
-        options,
-        required: true,
+        items,
     });
 
-    if (p.isCancel(selectedTools)) {
+    if (selectedTools === null) {
         p.log.info('Cancelled');
         return;
     }

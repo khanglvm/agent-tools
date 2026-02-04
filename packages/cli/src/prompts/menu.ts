@@ -1,91 +1,132 @@
+/**
+ * Main menu with flattened structure and ESC-back navigation
+ */
+
 import * as p from '@clack/prompts';
-import type { AgentType, ConfigSource } from '../types.js';
+import type { AgentType } from '../types.js';
+import { listServers } from '../registry/store.js';
 import { showPastePrompt } from './paste.js';
 import { showGitHubPrompt } from './github.js';
 import { runBuildMode } from './build.js';
-import { cmdList, cmdSync, cmdStatus } from '../commands/index.js';
-import { runImportMode } from '../core/import.js';
+import { runSyncFlow } from './sync.js';
+import { runRemoveFlow } from './remove.js';
+import { runImportFlow } from './import.js';
+import { runEditFlow } from './edit.js';
 
 /**
  * Show interactive menu when run without arguments
  */
 export async function showMenu(installedAgents: AgentType[]) {
     while (true) {
-        const shouldExit = await showMainMenu(installedAgents);
+        const shouldExit = await showRootMenu(installedAgents);
         if (shouldExit) break;
     }
 }
 
 /**
- * Handle Ctrl+C - ask to exit (default yes)
- * Returns true if user wants to exit
+ * Root menu - flattened structure
+ * ESC = exit prompt (at root level only)
  */
-async function handleCancel(): Promise<boolean> {
-    const confirm = await p.confirm({
-        message: 'Exit mcpm?',
-        initialValue: true,
+async function showRootMenu(installedAgents: AgentType[]): Promise<boolean> {
+    const servers = listServers();
+    const hasServers = servers.length > 0;
+
+    // Build options based on registry state
+    type MenuOption = 'add' | 'sync' | 'remove' | 'import' | 'edit' | 'exit';
+
+    const options: { value: MenuOption; label: string; hint?: string }[] = [
+        {
+            value: 'add',
+            label: 'Add MCP Server',
+            hint: 'Paste, build, or from GitHub',
+        },
+    ];
+
+    // Only show Sync, Remove, Edit if registry has servers
+    if (hasServers) {
+        options.push({
+            value: 'sync',
+            label: 'Sync to Agents',
+            hint: `Push ${servers.length} server(s) to agents`,
+        });
+    }
+
+    if (hasServers) {
+        options.push({
+            value: 'remove',
+            label: 'Remove MCP Server',
+            hint: 'Remove from registry/agents',
+        });
+    }
+
+    options.push({
+        value: 'import',
+        label: 'Import from Agent',
+        hint: 'Pull existing configs into registry',
     });
 
-    if (p.isCancel(confirm) || confirm) {
-        return true; // Exit
+    if (hasServers) {
+        options.push({
+            value: 'edit',
+            label: 'Edit MCP Server',
+            hint: 'Modify server configurations',
+        });
     }
-    return false; // Continue
-}
 
-/**
- * Main menu
- */
-async function showMainMenu(installedAgents: AgentType[]): Promise<boolean> {
-    const category = await p.select<'add' | 'manage' | 'exit'>({
+    options.push({
+        value: 'exit',
+        label: 'Exit',
+    });
+
+    const choice = await p.select<MenuOption>({
         message: 'What would you like to do?',
-        options: [
-            {
-                value: 'add',
-                label: 'Add MCP Server',
-                hint: 'Install a new server',
-            },
-            {
-                value: 'manage',
-                label: 'Manage Registry',
-                hint: 'List, sync, import, status',
-            },
-            {
-                value: 'exit',
-                label: 'Exit',
-            },
-        ],
+        options,
     });
 
-    if (p.isCancel(category)) {
-        return await handleCancel();
-    }
-
-    if (category === 'exit') {
+    // ESC at root level = exit
+    if (p.isCancel(choice)) {
         return true;
     }
 
-    if (category === 'add') {
-        const exit = await showAddMenu(installedAgents);
-        if (exit) return true;
-    } else if (category === 'manage') {
-        const exit = await showManageMenu();
-        if (exit) return true;
+    if (choice === 'exit') {
+        return true;
+    }
+
+    // Handle each menu option
+    switch (choice) {
+        case 'add':
+            await runAddFlow(installedAgents);
+            break;
+        case 'sync':
+            await runSyncFlow();
+            break;
+        case 'remove':
+            await runRemoveFlow();
+            break;
+        case 'import':
+            await runImportFlow();
+            break;
+        case 'edit':
+            await runEditFlow();
+            break;
     }
 
     return false;
 }
 
 /**
- * Add server submenu - returns true if should exit
+ * Add server submenu
  */
-async function showAddMenu(installedAgents: AgentType[]): Promise<boolean> {
-    const source = await p.select<ConfigSource | 'back'>({
-        message: 'How would you like to provide the configuration?',
+async function runAddFlow(installedAgents: AgentType[]): Promise<void> {
+    type AddSource = 'paste' | 'build' | 'github';
+
+    const source = await p.select<AddSource | 'back'>({
+        message: 'How would you like to add?',
         options: [
             {
                 value: 'paste',
                 label: 'Paste JSON/YAML',
-                hint: 'Copy from README or mcp.json',
+                hint: 'Copy from README or docs',
             },
             {
                 value: 'build',
@@ -104,12 +145,9 @@ async function showAddMenu(installedAgents: AgentType[]): Promise<boolean> {
         ],
     });
 
-    if (p.isCancel(source)) {
-        return await handleCancel();
-    }
-
-    if (source === 'back') {
-        return false;
+    // ESC = go back
+    if (p.isCancel(source) || source === 'back') {
+        return;
     }
 
     try {
@@ -124,100 +162,8 @@ async function showAddMenu(installedAgents: AgentType[]): Promise<boolean> {
                 await showGitHubPrompt(installedAgents);
                 break;
         }
-        await pressEnterToContinue();
     } catch (error) {
-        await handleError(error, 'add server');
+        const msg = error instanceof Error ? error.message : String(error);
+        p.log.error(`Failed: ${msg}`);
     }
-
-    return false;
-}
-
-/**
- * Manage registry submenu - returns true if should exit
- */
-async function showManageMenu(): Promise<boolean> {
-    const action = await p.select<'list' | 'sync' | 'import' | 'status' | 'back'>({
-        message: 'Registry management',
-        options: [
-            {
-                value: 'list',
-                label: 'List servers',
-                hint: 'Show all in registry',
-            },
-            {
-                value: 'sync',
-                label: 'Sync to agents',
-                hint: 'Push registry to all agents',
-            },
-            {
-                value: 'import',
-                label: 'Import from agents',
-                hint: 'Pull existing servers into registry',
-            },
-            {
-                value: 'status',
-                label: 'Check status',
-                hint: 'Show drift and conflicts',
-            },
-            {
-                value: 'back',
-                label: 'Back',
-            },
-        ],
-    });
-
-    if (p.isCancel(action)) {
-        return await handleCancel();
-    }
-
-    if (action === 'back') {
-        return false;
-    }
-
-    try {
-        switch (action) {
-            case 'list':
-                await cmdList();
-                break;
-            case 'sync':
-                await cmdSync();
-                break;
-            case 'import':
-                await runImportMode();
-                break;
-            case 'status':
-                await cmdStatus();
-                break;
-        }
-        await pressEnterToContinue();
-    } catch (error) {
-        await handleError(error, action);
-    }
-
-    return false;
-}
-
-/**
- * Simple "press enter to continue"
- */
-async function pressEnterToContinue(): Promise<void> {
-    const result = await p.text({
-        message: 'Press Enter to continue...',
-        defaultValue: '',
-        placeholder: '',
-    });
-
-    if (p.isCancel(result)) {
-        // User pressed Ctrl+C, just continue - they're in menu already
-        return;
-    }
-}
-
-/**
- * Handle errors gracefully
- */
-async function handleError(error: unknown, action: string): Promise<void> {
-    const message = error instanceof Error ? error.message : String(error);
-    p.log.error(`Failed to ${action}: ${message}`);
-    await pressEnterToContinue();
 }

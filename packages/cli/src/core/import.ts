@@ -39,17 +39,17 @@ export interface ImportResult {
 /**
  * Extract MCP servers from an agent config
  */
-export function extractServersFromAgent(agentType: AgentType): Map<string, Record<string, unknown>> {
+export async function extractServersFromAgent(agentType: AgentType): Promise<Map<string, Record<string, unknown>>> {
     const parser = createParser(agentType);
-    const config = parser.read();
+    const config = await parser.read();
 
-    if (!config) {
+    if (!config || !config.servers) {
         return new Map();
     }
 
     const servers = new Map<string, Record<string, unknown>>();
 
-    for (const [name, serverConfig] of Object.entries(config)) {
+    for (const [name, serverConfig] of Object.entries(config.servers)) {
         servers.set(name, serverConfig as Record<string, unknown>);
     }
 
@@ -119,7 +119,7 @@ export async function scanAgentsForImport(
     const found = new Map<string, { config: Record<string, unknown>; agents: AgentType[] }>();
 
     for (const agentType of agents) {
-        const servers = extractServersFromAgent(agentType);
+        const servers = await extractServersFromAgent(agentType);
 
         for (const [name, config] of servers) {
             // Skip mcpm-managed servers unless explicitly included
@@ -280,7 +280,7 @@ export async function importServerByName(
     const agents = fromAgent ? [fromAgent] : detectInstalledAgents();
 
     for (const agentType of agents) {
-        const servers = extractServersFromAgent(agentType);
+        const servers = await extractServersFromAgent(agentType);
         const config = servers.get(serverName);
 
         if (!config) continue;

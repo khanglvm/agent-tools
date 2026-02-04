@@ -1,6 +1,7 @@
 import * as p from '@clack/prompts';
 import * as readline from 'node:readline';
-import type { AgentType, ParsedMcpConfig } from '../types.js';
+import pc from 'picocolors';
+import type { AgentType, ParsedMcpConfig, McpServerConfig } from '../types.js';
 import { parseConfig } from '../parsers/detect.js';
 import { showToolSelector } from './tools.js';
 import { showEnvPrompts } from './env.js';
@@ -95,6 +96,304 @@ async function readMultilineInput(): Promise<string | null> {
 }
 
 /**
+ * Show formatted config preview for a server
+ */
+function showServerPreview(name: string, config: McpServerConfig): void {
+    p.log.info(`${pc.cyan(pc.bold(name))}`);
+
+    // Transport type
+    const transport = config.type || (config.command ? 'stdio' : config.url ? 'sse' : 'unknown');
+    p.log.message(`  Transport: ${pc.dim(transport)}`);
+
+    if (config.command) {
+        p.log.message(`  Command: ${pc.dim(config.command)}`);
+        if (config.args?.length) {
+            p.log.message(`  Args: ${pc.dim(config.args.join(' '))}`);
+        }
+    }
+
+    if (config.url) {
+        p.log.message(`  URL: ${pc.dim(config.url)}`);
+    }
+
+    if (config.env && Object.keys(config.env).length > 0) {
+        const envEntries = Object.entries(config.env);
+        p.log.message(`  Env: ${pc.dim(`${envEntries.length} variable(s):`)}`);
+        for (const [key, value] of envEntries) {
+            // Mask potentially sensitive values (API keys, tokens, secrets)
+            const isSensitive = /key|token|secret|password|auth/i.test(key);
+            const displayValue = isSensitive && value
+                ? String(value).slice(0, 8) + '...'
+                : String(value ?? '(not set)');
+            p.log.message(`    ${pc.yellow(key)}: ${pc.dim(displayValue)}`);
+        }
+    }
+}
+
+/**
+ * Edit a single server's configuration
+ */
+async function editServerConfig(
+    name: string,
+    config: McpServerConfig
+): Promise<McpServerConfig | null> {
+    let edited = { ...config };
+
+    while (true) {
+        // Determine current transport
+        const currentTransport = edited.type || (edited.command ? 'stdio' : 'sse');
+
+        // Build edit options based on transport
+        const options = [
+            { value: 'transport', label: `Transport (${currentTransport})` },
+            ...(currentTransport === 'stdio' ? [
+                { value: 'command', label: `Command${edited.command ? ` (${edited.command})` : ''}` },
+                { value: 'args', label: `Args${edited.args?.length ? ` (${edited.args.length} items)` : ' (none)'}` },
+            ] : [
+                { value: 'url', label: `URL${edited.url ? ` (${edited.url})` : ''}` },
+            ]),
+            { value: 'env', label: `Environment (${Object.keys(edited.env || {}).length} vars)` },
+            { value: 'done', label: pc.green('Done editing') },
+            { value: 'cancel', label: 'Cancel changes' },
+        ];
+
+        const action = await p.select({
+            message: `Edit ${pc.cyan(name)}:`,
+            options,
+        });
+
+        if (p.isCancel(action) || action === 'cancel') {
+            return null;
+        }
+
+        if (action === 'done') {
+            return edited;
+        }
+
+        switch (action) {
+            case 'transport': {
+                const newTransport = await p.select({
+                    message: 'Select transport:',
+                    options: [
+                        { value: 'stdio', label: 'stdio (local command)' },
+                        { value: 'sse', label: 'sse (server-sent events)' },
+                        { value: 'http', label: 'http (streamable HTTP)' },
+                    ],
+                });
+
+                if (!p.isCancel(newTransport)) {
+                    edited.type = newTransport as 'stdio' | 'sse' | 'http';
+
+                    // Reset fields based on new transport
+                    if (newTransport === 'stdio') {
+                        edited.url = undefined;
+                        if (!edited.command) {
+                            const cmd = await p.text({ message: 'Command:' });
+                            if (!p.isCancel(cmd)) edited.command = cmd;
+                        }
+                    } else {
+                        edited.command = undefined;
+                        edited.args = undefined;
+                        if (!edited.url) {
+                            const url = await p.text({ message: 'URL:' });
+                            if (!p.isCancel(url)) edited.url = url;
+                        }
+                    }
+                }
+                break;
+            }
+
+            case 'command': {
+                const newCmd = await p.text({
+                    message: 'Command:',
+                    initialValue: edited.command || '',
+                });
+                if (!p.isCancel(newCmd)) {
+                    edited.command = newCmd;
+                }
+                break;
+            }
+
+            case 'args': {
+                const argsStr = await p.text({
+                    message: 'Args (space-separated):',
+                    initialValue: edited.args?.join(' ') || '',
+                });
+                if (!p.isCancel(argsStr)) {
+                    edited.args = argsStr.trim() ? argsStr.trim().split(/\s+/) : [];
+                }
+                break;
+            }
+
+            case 'url': {
+                const newUrl = await p.text({
+                    message: 'URL:',
+                    initialValue: edited.url || '',
+                });
+                if (!p.isCancel(newUrl)) {
+                    edited.url = newUrl;
+                }
+                break;
+            }
+
+            case 'env': {
+                // Edit environment variables
+                const env = edited.env || {};
+                const envKeys = Object.keys(env);
+
+                const envOptions = [
+                    ...envKeys.map(k => ({
+                        value: `edit:${k}`,
+                        label: `${k} = ${typeof env[k] === 'string' && env[k].length > 20 ? env[k].slice(0, 20) + '...' : env[k] ?? '(not set)'}`,
+                    })),
+                    { value: 'add', label: pc.green('+ Add new variable') },
+                    { value: 'back', label: 'Back' },
+                ];
+
+                const envAction = await p.select({
+                    message: 'Environment variables:',
+                    options: envOptions,
+                });
+
+                if (!p.isCancel(envAction) && envAction !== 'back') {
+                    if (envAction === 'add') {
+                        const newKey = await p.text({ message: 'Variable name:' });
+                        if (!p.isCancel(newKey) && newKey) {
+                            const newVal = await p.text({ message: `Value for ${newKey}:` });
+                            if (!p.isCancel(newVal)) {
+                                edited.env = { ...env, [newKey]: newVal };
+                            }
+                        }
+                    } else if (envAction.startsWith('edit:')) {
+                        const keyToEdit = envAction.replace('edit:', '');
+                        const editOrDelete = await p.select({
+                            message: `${keyToEdit}:`,
+                            options: [
+                                { value: 'edit', label: 'Edit value' },
+                                { value: 'delete', label: pc.red('Delete') },
+                            ],
+                        });
+
+                        if (!p.isCancel(editOrDelete)) {
+                            if (editOrDelete === 'edit') {
+                                const newVal = await p.text({
+                                    message: `New value for ${keyToEdit}:`,
+                                    initialValue: String(env[keyToEdit] || ''),
+                                });
+                                if (!p.isCancel(newVal)) {
+                                    edited.env = { ...env, [keyToEdit]: newVal };
+                                }
+                            } else {
+                                const { [keyToEdit]: _, ...rest } = env;
+                                edited.env = rest;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * Show confirmation prompt with preview and edit option
+ */
+async function showConfigConfirmation(
+    parsed: ParsedMcpConfig
+): Promise<ParsedMcpConfig | null> {
+    const serverNames = Object.keys(parsed.servers);
+
+    // Show preview of all servers
+    p.log.step('Configuration Preview:');
+    let hasEnvVars = false;
+    for (const name of serverNames) {
+        showServerPreview(name, parsed.servers[name]);
+        if (parsed.servers[name].env && Object.keys(parsed.servers[name].env).length > 0) {
+            hasEnvVars = true;
+        }
+    }
+
+    // Note about editing env if any exist
+    if (hasEnvVars) {
+        p.log.message('');
+        p.log.info(`${pc.yellow('Tip:')} Select "Edit configuration" if you need to modify environment variables`);
+    }
+
+    // For multiple servers, let user select which to edit
+    if (serverNames.length > 1) {
+        const action = await p.select({
+            message: 'Configuration looks correct?',
+            options: [
+                { value: 'confirm', label: pc.green('Looks good! Continue') },
+                { value: 'edit', label: 'Edit a server' },
+                { value: 'cancel', label: 'Cancel' },
+            ],
+        });
+
+        if (p.isCancel(action) || action === 'cancel') {
+            return null;
+        }
+
+        if (action === 'confirm') {
+            return parsed;
+        }
+
+        // Edit flow - select which server
+        const serverToEdit = await p.select({
+            message: 'Which server to edit?',
+            options: serverNames.map(n => ({ value: n, label: n })),
+        });
+
+        if (p.isCancel(serverToEdit)) {
+            return parsed;
+        }
+
+        const edited = await editServerConfig(serverToEdit, parsed.servers[serverToEdit]);
+        if (edited) {
+            return {
+                ...parsed,
+                servers: { ...parsed.servers, [serverToEdit]: edited },
+            };
+        }
+
+        // If cancelled edit, return to confirmation
+        return showConfigConfirmation(parsed);
+    } else {
+        // Single server - simpler flow
+        const action = await p.select({
+            message: 'Configuration looks correct?',
+            options: [
+                { value: 'confirm', label: pc.green('Looks good! Continue') },
+                { value: 'edit', label: 'Edit configuration' },
+                { value: 'cancel', label: 'Cancel' },
+            ],
+        });
+
+        if (p.isCancel(action) || action === 'cancel') {
+            return null;
+        }
+
+        if (action === 'confirm') {
+            return parsed;
+        }
+
+        // Edit the single server
+        const [serverName] = serverNames;
+        const edited = await editServerConfig(serverName, parsed.servers[serverName]);
+        if (edited) {
+            return {
+                ...parsed,
+                servers: { ...parsed.servers, [serverName]: edited },
+            };
+        }
+
+        // If cancelled edit, return to confirmation
+        return showConfigConfirmation(parsed);
+    }
+}
+
+/**
  * Show paste configuration prompt with multiline support
  */
 export async function showPastePrompt(installedAgents: AgentType[]) {
@@ -136,8 +435,15 @@ export async function showPastePrompt(installedAgents: AgentType[]) {
     p.log.info(`Detected format: ${parsed.sourceFormat.toUpperCase()} with "${parsed.sourceWrapperKey}" wrapper`);
     p.log.info(`Found ${serverNames.length} server(s): ${serverNames.join(', ')}`);
 
+    // Confirmation step with preview and edit option
+    const confirmed = await showConfigConfirmation(parsed);
+    if (!confirmed) {
+        p.log.info('Cancelled');
+        return;
+    }
+
     // Prompt for env vars if any have null values
-    const configWithEnv = await showEnvPrompts(parsed);
+    const configWithEnv = await showEnvPrompts(confirmed);
 
     // Drain again before tool selector
     await drainStdin();

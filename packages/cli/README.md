@@ -4,7 +4,7 @@ MCP Manager — Centralized MCP server configuration for AI coding agents.
 
 ## Features
 
-- Auto-detects 16 AI coding agents
+- Auto-detects 20 AI coding agents
 - Paste JSON/YAML MCP configs from READMEs
 - Install from **GitHub, GitLab, Bitbucket, Codeberg**
 - Keychain storage for secrets
@@ -81,21 +81,26 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 
 | Agent | Transport | Format |
 |-------|-----------|--------|
-| Claude Code | stdio, http, sse | JSON |
-| Cursor | stdio, http, sse | JSON |
-| Windsurf | stdio, http, sse | JSON |
+| Amazon Q Developer | stdio | JSON |
+| Amp | stdio | JSON |
 | Antigravity | stdio, http, sse | JSON |
+| Claude Code | stdio, http, sse | JSON |
+| Claude Desktop | stdio | JSON |
 | Cline | stdio, http, sse | JSON |
-| Roo Code | stdio, http, sse | JSON |
-| VS Code + Copilot | stdio, http | JSON |
-| GitHub Copilot CLI | stdio, http | JSON |
-| Gemini CLI | stdio, http, sse | JSON |
+| Codex (CLI / Desktop) | stdio | TOML |
 | Continue | stdio, http | YAML |
-| Goose | stdio, http | YAML |
-| OpenCode | stdio, http | YAML |
-| Codex (OpenAI) | stdio | TOML |
-| Zed | stdio | JSON |
+| Cursor | stdio, http, sse | JSON |
 | Factory Droid | stdio, http | JSON |
+| Gemini CLI | stdio, http, sse | JSON |
+| GitHub Copilot CLI | stdio, http | JSON |
+| Goose | stdio, http | YAML |
+| JetBrains AI Assistant | stdio | XML |
+| OpenCode | stdio, http | YAML |
+| Roo Code | stdio, http, sse | JSON |
+| Sourcegraph Cody | stdio | JSON |
+| VS Code + Copilot | stdio, http | JSON |
+| Windsurf | stdio, http, sse | JSON |
+| Zed | stdio | JSON |
 
 ## License
 

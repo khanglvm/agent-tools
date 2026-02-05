@@ -138,7 +138,7 @@ export async function runImportFlow(): Promise<FlowResult> {
                             message: `New name for "${name}":`,
                             placeholder: `${name}-imported`,
                             validate: (val) => {
-                                if (!val.trim()) return 'Name required';
+                                if (!val?.trim()) return 'Name required';
                                 if (registry.servers[val]) return 'Name already exists in registry';
                                 if (renamedServers.some(r => r.newName === val)) return 'Name already used';
                                 return undefined;

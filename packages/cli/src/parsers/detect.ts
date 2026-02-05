@@ -119,10 +119,11 @@ function extractServers(
             servers[name] = {
                 command: serverConfig.command as string | undefined,
                 args: serverConfig.args as string[] | undefined,
-                env: serverConfig.env as Record<string, string | null> | undefined,
+                env: serverConfig.env as McpServerConfig['env'],
                 type: normalizeType(serverConfig.type),
                 url: serverConfig.url as string | undefined,
-                headers: serverConfig.headers as Record<string, string> | undefined,
+                // Headers can be plain strings or extended schema (like env)
+                headers: serverConfig.headers as McpServerConfig['headers'],
             };
         }
     }

@@ -66,7 +66,7 @@ export async function runBuildMode(): Promise<BuildResult | null> {
             },
             {
                 value: 'http',
-                label: 'Remote URL (HTTP)',
+                label: 'Remote URL (HTTP/SSE)',
                 hint: 'Connect to a hosted server like `https://api.example.com/mcp`',
             },
         ],

@@ -242,3 +242,10 @@ export function getAgentsWithLocalSupport(): AgentType[] {
         .filter(([_, config]) => config.supportsLocalConfig)
         .map(([type]) => type as AgentType);
 }
+
+/**
+ * Validate if a string is a valid AgentType
+ */
+export function isValidAgentType(name: string): name is AgentType {
+    return Object.keys(agents).includes(name);
+}

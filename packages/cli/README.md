@@ -4,7 +4,7 @@ MCP Manager — Centralized MCP server configuration for AI coding agents.
 
 ## Features
 
-- Auto-detects AI coding agents (actively maintained)
+- Auto-detects AI coding agents
 - Paste JSON/YAML MCP configs from READMEs
 - Install from **GitHub, GitLab, Bitbucket, Codeberg**
 - Keychain storage for secrets
@@ -29,7 +29,7 @@ npx @khanglvm/mcpm
 # CLI commands
 npx @khanglvm/mcpm list              # List saved servers from registry
 npx @khanglvm/mcpm add               # Add server interactively
-npx @khanglvm/mcpm add <github-url>  # Add from GitHub URL
+npx @khanglvm/mcpm add <git-url>     # Add from Git URL
 npx @khanglvm/mcpm sync              # Sync MCP servers from registry to agents
 npx @khanglvm/mcpm import            # Import MCP configs from agents to registry
 npx @khanglvm/mcpm status            # Check sync status
@@ -41,7 +41,8 @@ npx @khanglvm/mcpm remove <name>     # Remove MCP server
 ```bash
 npx @khanglvm/mcpm --paste           # Paste configuration mode
 npx @khanglvm/mcpm --build           # Build step-by-step
-npx @khanglvm/mcpm <repo-url>        # Install from GitHub/GitLab/Bitbucket/Codeberg
+npx @khanglvm/mcpm <repo-url>        # Install from Git repo (GitHub/GitLab/Bitbucket/Codeberg)
+npx @khanglvm/mcpm <repo-url> -y     # Automated install (no prompts if all credentials provided)
 ```
 
 ## For MCP Developers
@@ -109,6 +110,27 @@ npx @khanglvm/mcpm https://github.com/you/my-server
 | `required` | `boolean` | Required field (default: `true`) |
 | `hidden` | `boolean` | Mask input (auto-detected for `key`, `secret`, `token`, `password`) |
 
+**HTTP/SSE transport** — for remote MCP servers:
+```jsonc
+// mcp.json
+{
+  "mcpServers": {
+    "remote-api": {
+      "url": "https://mcp.example.com/sse",
+      "headers": {
+        "Authorization": {
+          "value": null,
+          "description": "Bearer token from dashboard",
+          "helpUrl": "https://example.com/tokens",
+          "hidden": true
+        },
+        "x-api-version": "2024-01"
+      }
+    }
+  }
+}
+```
+
 ---
 
 ### Option 2: Share a One-Liner Install Command
@@ -124,14 +146,20 @@ npx @khanglvm/mcpm https://github.com/you/my-server \
 
 | Modifier | Description |
 |----------|-------------|
-| `--env:KEY=VALUE` | Pre-fill value (overrides `mcp.json`) |
+| `--env:KEY=VALUE` | Pre-fill env var (overrides `mcp.json`) |
+| `--header:KEY=VALUE` | Pre-fill header (for HTTP/SSE servers) |
+| `--agent:<name>` | Pre-select agent(s) for installation |
+| `--scope:global` / `--scope:project` | Pre-select installation scope (default: global) |
+| `-y` / `--yes` | Automated install (validate, show tools, install to all agents) |
 | `::description="..."` | Show hint during setup |
 | `::helpUrl="..."` | Show link (with security warning) |
 | `::hidden` | Mask input field |
 | `::optional` | Allow empty value |
 | `--note:"..."` | Display message to user |
 
-> All modifiers are optional.
+> **Auto mode (`-y`)**: Automatically validates MCP servers and installs to all compatible agents without prompts. Falls back to interactive mode if required credentials are missing.
+
+> All modifiers are optional. `--env` applies to stdio servers, `--header` applies to HTTP/SSE servers. `--agent` can be repeated (e.g., `--agent:cursor --agent:claude-code`).
 
 ---
 

@@ -76,6 +76,29 @@ export async function injectConfig(
  * - OpenCode: command[], environment, url, type
  * - Standard fallback: url only
  */
+
+/**
+ * Flatten headers from extended schema to plain strings.
+ * Extended schema: { value: string, description?, ... } -> string
+ * Plain strings remain unchanged.
+ */
+function flattenHeaders(
+    headers?: Record<string, string | null | { value: string | null; description?: string; helpUrl?: string; required?: boolean; hidden?: boolean }>
+): Record<string, string> | undefined {
+    if (!headers) return undefined;
+
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(headers)) {
+        if (typeof value === 'string') {
+            result[key] = value;
+        } else if (value && typeof value === 'object' && value.value !== null) {
+            result[key] = String(value.value);
+        }
+        // Skip null values (not yet configured)
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function transformForAgent(
     agentType: AgentType,
     servers: Record<string, McpServerConfig>
@@ -114,7 +137,7 @@ function transformForAgent(
                 result[name] = {
                     type: server.type || 'sse',
                     url: server.url,
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         } else if (agentType === 'antigravity') {
@@ -128,7 +151,7 @@ function transformForAgent(
             } else {
                 result[name] = {
                     serverUrl: server.url,
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         } else if (agentType === 'gemini-cli') {
@@ -142,7 +165,7 @@ function transformForAgent(
             } else {
                 result[name] = {
                     httpUrl: server.url,
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         } else if (agentType === 'windsurf') {
@@ -157,7 +180,7 @@ function transformForAgent(
                 result[name] = {
                     serverUrl: server.url,
                     transport: server.type || 'sse',
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         } else if (agentType === 'claude-code') {
@@ -172,7 +195,7 @@ function transformForAgent(
                 result[name] = {
                     type: server.type || 'http',
                     url: server.url,
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         } else if (agentType === 'cursor' || agentType === 'cline' || agentType === 'roo') {
@@ -187,7 +210,7 @@ function transformForAgent(
                 result[name] = {
                     type: server.type || 'sse',
                     url: server.url,
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         } else {
@@ -203,7 +226,7 @@ function transformForAgent(
             } else {
                 result[name] = {
                     url: server.url,
-                    ...(server.headers && { headers: server.headers }),
+                    ...(flattenHeaders(server.headers) && { headers: flattenHeaders(server.headers) }),
                 };
             }
         }

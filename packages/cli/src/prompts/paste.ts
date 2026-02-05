@@ -4,7 +4,8 @@ import pc from 'picocolors';
 import type { AgentType, ParsedMcpConfig, McpServerConfig } from '../types.js';
 import { parseConfig } from '../parsers/detect.js';
 import { showToolSelector } from './tools.js';
-import { showEnvPrompts } from './env.js';
+import { showEnvPrompts } from './credentials.js';
+import { showValidationScreen, showValidationConfirmation } from './validation.js';
 
 /**
  * Drain any buffered stdin input
@@ -297,10 +298,12 @@ async function editServerConfig(
 }
 
 /**
- * Show confirmation prompt with preview and edit option
+ * Show confirmation prompt with preview, validation, and edit option
+ * @param needsRevalidation - If true, show "Revalidate" instead of "Looks good"
  */
 async function showConfigConfirmation(
-    parsed: ParsedMcpConfig
+    parsed: ParsedMcpConfig,
+    needsRevalidation = false
 ): Promise<ParsedMcpConfig | null> {
     const serverNames = Object.keys(parsed.servers);
 
@@ -310,12 +313,17 @@ async function showConfigConfirmation(
         showServerPreview(name, parsed.servers[name]);
     }
 
+    // Build confirmation options based on whether we need revalidation
+    const confirmLabel = needsRevalidation
+        ? pc.yellow('Revalidate configuration & install')
+        : pc.green('Looks good! Validate & continue');
+
     // For multiple servers, let user select which to edit
     if (serverNames.length > 1) {
         const action = await p.select({
             message: 'Configuration looks correct?',
             options: [
-                { value: 'confirm', label: pc.green('Looks good! Continue') },
+                { value: 'confirm', label: confirmLabel },
                 { value: 'edit', label: 'Edit a server' },
                 { value: 'cancel', label: 'Cancel' },
             ],
@@ -326,7 +334,18 @@ async function showConfigConfirmation(
         }
 
         if (action === 'confirm') {
-            return parsed;
+            // Run validation
+            const validationResult = await showValidationScreen(parsed);
+            const decision = await showValidationConfirmation(validationResult);
+
+            if (decision === 'install') {
+                return parsed;
+            } else if (decision === 'back') {
+                // Loop back with revalidation flag
+                return showConfigConfirmation(parsed, true);
+            } else {
+                return null;
+            }
         }
 
         // Edit flow - select which server
@@ -336,25 +355,27 @@ async function showConfigConfirmation(
         });
 
         if (p.isCancel(serverToEdit)) {
-            return parsed;
+            return showConfigConfirmation(parsed, needsRevalidation);
         }
 
         const edited = await editServerConfig(serverToEdit, parsed.servers[serverToEdit]);
         if (edited) {
-            return {
+            const updatedConfig = {
                 ...parsed,
                 servers: { ...parsed.servers, [serverToEdit]: edited },
             };
+            // Return to confirmation with revalidation flag
+            return showConfigConfirmation(updatedConfig, needsRevalidation);
         }
 
         // If cancelled edit, return to confirmation
-        return showConfigConfirmation(parsed);
+        return showConfigConfirmation(parsed, needsRevalidation);
     } else {
         // Single server - simpler flow
         const action = await p.select({
             message: 'Configuration looks correct?',
             options: [
-                { value: 'confirm', label: pc.green('Looks good! Continue') },
+                { value: 'confirm', label: confirmLabel },
                 { value: 'edit', label: 'Edit configuration' },
                 { value: 'cancel', label: 'Cancel' },
             ],
@@ -365,21 +386,34 @@ async function showConfigConfirmation(
         }
 
         if (action === 'confirm') {
-            return parsed;
+            // Run validation
+            const validationResult = await showValidationScreen(parsed);
+            const decision = await showValidationConfirmation(validationResult);
+
+            if (decision === 'install') {
+                return parsed;
+            } else if (decision === 'back') {
+                // Loop back with revalidation flag
+                return showConfigConfirmation(parsed, true);
+            } else {
+                return null;
+            }
         }
 
         // Edit the single server
         const [serverName] = serverNames;
         const edited = await editServerConfig(serverName, parsed.servers[serverName]);
         if (edited) {
-            return {
+            const updatedConfig = {
                 ...parsed,
                 servers: { ...parsed.servers, [serverName]: edited },
             };
+            // Return to confirmation with revalidation flag
+            return showConfigConfirmation(updatedConfig, needsRevalidation);
         }
 
         // If cancelled edit, return to confirmation
-        return showConfigConfirmation(parsed);
+        return showConfigConfirmation(parsed, needsRevalidation);
     }
 }
 

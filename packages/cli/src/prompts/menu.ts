@@ -6,7 +6,7 @@ import * as p from '@clack/prompts';
 import type { AgentType } from '../types.js';
 import { listServers } from '../registry/store.js';
 import { showPastePrompt } from './paste.js';
-import { showGitHubPrompt } from './github.js';
+import { showGitPrompt } from './github.js';
 import { runBuildMode } from './build.js';
 import { runSyncFlow } from './sync.js';
 import { runRemoveFlow } from './remove.js';
@@ -38,7 +38,7 @@ async function showRootMenu(installedAgents: AgentType[]): Promise<boolean> {
         {
             value: 'add',
             label: 'Add MCP Server',
-            hint: 'Paste, build, or from GitHub',
+            hint: 'Paste, build, or from repository',
         },
     ];
 
@@ -118,7 +118,7 @@ async function showRootMenu(installedAgents: AgentType[]): Promise<boolean> {
  * Add server submenu
  */
 async function runAddFlow(installedAgents: AgentType[]): Promise<void> {
-    type AddSource = 'paste' | 'build' | 'github';
+    type AddSource = 'paste' | 'build' | 'git';
 
     const source = await p.select<AddSource | 'back'>({
         message: 'How would you like to add?',
@@ -134,9 +134,9 @@ async function runAddFlow(installedAgents: AgentType[]): Promise<void> {
                 hint: 'Create from scratch',
             },
             {
-                value: 'github',
-                label: 'GitHub repository',
-                hint: 'Auto-extract from repo',
+                value: 'git',
+                label: 'Git repository',
+                hint: 'GitHub, GitLab, Bitbucket, etc.',
             },
             {
                 value: 'back',
@@ -158,8 +158,8 @@ async function runAddFlow(installedAgents: AgentType[]): Promise<void> {
             case 'build':
                 await runBuildMode();
                 break;
-            case 'github':
-                await showGitHubPrompt(installedAgents);
+            case 'git':
+                await showGitPrompt(installedAgents);
                 break;
         }
     } catch (error) {

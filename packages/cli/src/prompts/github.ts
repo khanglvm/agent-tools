@@ -1,10 +1,11 @@
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
-import type { AgentType, CliEnvConfig } from '../types.js';
+import type { AgentType, CliEnvConfig, AutoOptions } from '../types.js';
 import { fetchFromGit, parseGitUrl } from '../git/index.js';
-import { showEnvPrompts } from './env.js';
+import { showEnvPrompts } from './credentials.js';
 import { showToolSelector } from './tools.js';
 import { plural } from './shared.js';
+import { checkAutoConditions, runAutoInstall } from './yolo.js';
 
 /**
  * Supported git providers for display
@@ -17,13 +18,19 @@ const SUPPORTED_PROVIDERS = ['GitHub', 'GitLab', 'Bitbucket', 'Codeberg'];
  * @param initialUrl - Optional pre-filled URL
  * @param preEnv - Optional pre-configured env values from CLI args (simple string or extended config)
  * @param note - Optional note to display for user guidance
+ * @param preHeaders - Optional pre-configured header values from CLI args
+ * @param preAgents - Optional pre-selected agents from CLI args
+ * @param autoOptions - Optional auto mode options for automated installation
  * @returns true if flow completed, false if cancelled
  */
 export async function showGitPrompt(
     installedAgents: AgentType[],
     initialUrl?: string,
     preEnv?: Record<string, string | CliEnvConfig>,
-    note?: string
+    note?: string,
+    preHeaders?: Record<string, string | CliEnvConfig>,
+    preAgents?: AgentType[],
+    autoOptions?: AutoOptions
 ): Promise<boolean> {
     let url = initialUrl;
 
@@ -108,7 +115,51 @@ export async function showGitPrompt(
             }
         }
 
-        // Prompt for env vars, passing preconfigured keys for hint
+        // Merge pre-configured headers into HTTP server configs
+        if (preHeaders && Object.keys(preHeaders).length > 0) {
+            for (const serverName of serverNames) {
+                const server = config.servers[serverName];
+                // Only apply to HTTP/SSE servers (no command, has url)
+                if (!server.command && server.url) {
+                    if (!server.headers) {
+                        server.headers = {};
+                    }
+                    for (const [key, preValue] of Object.entries(preHeaders)) {
+                        // Handle both simple string and CliEnvConfig
+                        if (typeof preValue === 'string') {
+                            server.headers[key] = preValue;
+                        } else {
+                            // CliEnvConfig: merge into EnvVarSchema format
+                            server.headers[key] = {
+                                value: preValue.value,
+                                description: preValue.description,
+                                helpUrl: preValue.helpUrl,
+                                required: preValue.required,
+                                hidden: preValue.hidden,
+                            };
+                        }
+                        preconfiguredKeys.add(key);
+                    }
+                }
+            }
+        }
+
+        // Auto mode (-y): check conditions and run automated install if possible
+        if (autoOptions?.enabled) {
+            const autoCheck = checkAutoConditions(config, installedAgents, autoOptions.scope);
+            if (autoCheck.canRun) {
+                return await runAutoInstall(
+                    config,
+                    installedAgents,
+                    autoOptions.scope,
+                    autoOptions.preAgents
+                );
+            }
+            // Conditions not met, fall through to normal flow
+            // (silently, as per spec)
+        }
+
+        // Normal flow: Prompt for env vars, passing preconfigured keys for hint
         const configWithEnv = await showEnvPrompts(config, preconfiguredKeys);
 
         // If user cancelled, exit
@@ -117,7 +168,7 @@ export async function showGitPrompt(
         }
 
         // Select tools
-        await showToolSelector(installedAgents, configWithEnv);
+        await showToolSelector(installedAgents, configWithEnv, preAgents);
         return true;
 
     } catch (err) {
@@ -129,3 +180,4 @@ export async function showGitPrompt(
 
 // Keep backward compatibility alias
 export const showGitHubPrompt = showGitPrompt;
+

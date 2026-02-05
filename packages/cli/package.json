@@ -1,6 +1,6 @@
 {
     "name": "@khanglvm/mcpm",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "description": "MCP Manager - Centralized MCP server configuration for AI agents",
     "type": "module",
     "bin": {
@@ -41,6 +41,7 @@
     "license": "MIT",
     "dependencies": {
         "@clack/prompts": "^1.0.0",
+        "@modelcontextprotocol/sdk": "^1.0.0",
         "cross-keychain": "^1.1.0",
         "gray-matter": "^4.0.3",
         "js-yaml": "^4.1.0",

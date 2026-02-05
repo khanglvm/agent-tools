@@ -37,8 +37,8 @@ export interface RegistryServer {
     /** For http/sse: server URL */
     url?: string;
 
-    /** For http/sse: custom headers */
-    headers?: Record<string, string>;
+    /** For http/sse: custom headers (supports extended schema) */
+    headers?: Record<string, string | null | { value: string | null; description?: string; helpUrl?: string; required?: boolean; hidden?: boolean }>;
 
     /** Environment variables (value or keychain reference) */
     env?: Record<string, string>;

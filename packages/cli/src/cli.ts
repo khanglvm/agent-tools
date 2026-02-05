@@ -3,7 +3,7 @@ import pc from 'picocolors';
 import { detectInstalledAgents, agents } from './agents.js';
 import { showMenu } from './prompts/menu.js';
 import { showPastePrompt } from './prompts/paste.js';
-import { showGitHubPrompt } from './prompts/github.js';
+import { showGitPrompt } from './prompts/github.js';
 import { runBuildMode } from './prompts/build.js';
 import { runCommand } from './commands/index.js';
 
@@ -34,56 +34,116 @@ async function main() {
         // Build mode
         await runBuildMode();
     } else if (args[0].startsWith('http')) {
-        // GitHub URL with optional --env:KEY=VALUE and --note:"text" args
+        // Git repository URL with optional --env:KEY=VALUE, --header:KEY=VALUE, --agent:<name>, --scope:, -y, and --note:"text" args
         const url = args[0];
         const preEnv: Record<string, string | import('./types.js').CliEnvConfig> = {};
+        const preHeaders: Record<string, string | import('./types.js').CliEnvConfig> = {};
+        const preAgents: import('./types.js').AgentType[] = [];
         let note: string | undefined;
+        let autoMode = false;
+        let scope: import('./types.js').InstallScope = 'global';
 
-        // Parse --env:KEY=VALUE::modifier and --note:"text" args
+        // Parse --env:KEY=VALUE::modifier, --header:KEY=VALUE::modifier, --agent:<name>, --scope:, -y, and --note:"text" args
         for (let i = 1; i < args.length; i++) {
             const arg = args[i];
-            if (arg.startsWith('--env:')) {
-                const envPart = arg.slice(6); // Remove "--env:"
 
-                // Split by :: to get modifiers
-                const segments = envPart.split('::');
+            // Parse -y flag (auto mode)
+            if (arg === '-y' || arg === '--yes') {
+                autoMode = true;
+                continue;
+            }
+
+            // Parse --scope:global or --scope:project
+            if (arg.startsWith('--scope:')) {
+                const scopeValue = arg.slice('--scope:'.length);
+                if (scopeValue === 'global' || scopeValue === 'project') {
+                    scope = scopeValue;
+                } else {
+                    p.log.warn(`Unknown scope: ${scopeValue}. Using 'global'.`);
+                }
+                continue;
+            }
+
+            // Parse --agent:<agent-name>
+            if (arg.startsWith('--agent:')) {
+                const agentName = arg.slice('--agent:'.length);
+                // Dynamic import to avoid circular dependency
+                const { isValidAgentType } = await import('./agents.js');
+                if (isValidAgentType(agentName)) {
+                    if (!preAgents.includes(agentName)) {
+                        preAgents.push(agentName);
+                    }
+                } else {
+                    p.log.warn(`Unknown agent: ${agentName}`);
+                }
+                continue;
+            }
+
+            // Helper to parse KEY=VALUE::modifiers
+            const parseCredentialArg = (prefix: string): { key: string; config: string | import('./types.js').CliEnvConfig } | null => {
+                if (!arg.startsWith(prefix)) return null;
+
+                const part = arg.slice(prefix.length);
+                const segments = part.split('::');
                 const keyValuePart = segments[0];
                 const modifiers = segments.slice(1);
 
                 const eqIndex = keyValuePart.indexOf('=');
-                if (eqIndex > 0) {
-                    const key = keyValuePart.slice(0, eqIndex);
-                    const value = keyValuePart.slice(eqIndex + 1) || null;
+                if (eqIndex <= 0) return null;
 
-                    // If no modifiers, use simple string value
-                    if (modifiers.length === 0) {
-                        preEnv[key] = value ?? '';
-                    } else {
-                        // Parse modifiers into CliEnvConfig
-                        const config: import('./types.js').CliEnvConfig = { value };
+                const key = keyValuePart.slice(0, eqIndex);
+                const value = keyValuePart.slice(eqIndex + 1) || null;
 
-                        for (const mod of modifiers) {
-                            if (mod === 'hidden') {
-                                config.hidden = true;
-                            } else if (mod === 'optional') {
-                                config.required = false;
-                            } else if (mod.startsWith('description=')) {
-                                // Remove quotes if present
-                                config.description = mod.slice(12).replace(/^["']|["']$/g, '');
-                            } else if (mod.startsWith('helpUrl=')) {
-                                config.helpUrl = mod.slice(8).replace(/^["']|["']$/g, '');
-                            }
-                        }
+                // If no modifiers, use simple string value
+                if (modifiers.length === 0) {
+                    return { key, config: value ?? '' };
+                }
 
-                        preEnv[key] = config;
+                // Parse modifiers into CliEnvConfig
+                const config: import('./types.js').CliEnvConfig = { value };
+
+                for (const mod of modifiers) {
+                    if (mod === 'hidden') {
+                        config.hidden = true;
+                    } else if (mod === 'optional') {
+                        config.required = false;
+                    } else if (mod.startsWith('description=')) {
+                        config.description = mod.slice(12).replace(/^["']|["']$/g, '');
+                    } else if (mod.startsWith('helpUrl=')) {
+                        config.helpUrl = mod.slice(8).replace(/^["']|["']$/g, '');
                     }
                 }
-            } else if (arg.startsWith('--note:')) {
+
+                return { key, config };
+            };
+
+            // Parse --env:KEY=VALUE::modifiers
+            const envResult = parseCredentialArg('--env:');
+            if (envResult) {
+                preEnv[envResult.key] = envResult.config;
+                continue;
+            }
+
+            // Parse --header:KEY=VALUE::modifiers
+            const headerResult = parseCredentialArg('--header:');
+            if (headerResult) {
+                preHeaders[headerResult.key] = headerResult.config;
+                continue;
+            }
+
+            if (arg.startsWith('--note:')) {
                 note = arg.slice(7); // Remove "--note:"
             }
         }
 
-        const completed = await showGitHubPrompt(installedAgents, url, preEnv, note);
+        // Build auto options
+        const autoOptions: import('./types.js').AutoOptions = {
+            enabled: autoMode,
+            scope,
+            preAgents: preAgents.length > 0 ? preAgents : undefined,
+        };
+
+        const completed = await showGitPrompt(installedAgents, url, preEnv, note, preHeaders, preAgents, autoOptions);
 
         // If cancelled, show interactive menu instead of exiting
         if (!completed) {

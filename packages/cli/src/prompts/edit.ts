@@ -130,7 +130,7 @@ async function editServerMenu(server: RegistryServer): Promise<'back' | 'deleted
                     message: 'New name:',
                     defaultValue: server.name,
                     validate: (val) => {
-                        if (!val.trim()) return 'Name required';
+                        if (!val?.trim()) return 'Name required';
                         if (val !== server.name && registry.servers[val]) {
                             return 'Name already exists';
                         }
@@ -156,7 +156,7 @@ async function editServerMenu(server: RegistryServer): Promise<'back' | 'deleted
                 const newCmd = await p.text({
                     message: 'Command:',
                     defaultValue: serverRef.command,
-                    validate: (val) => val.trim() ? undefined : 'Command required',
+                    validate: (val) => val?.trim() ? undefined : 'Command required',
                 });
 
                 if (p.isCancel(newCmd)) continue;
@@ -197,7 +197,7 @@ async function editServerMenu(server: RegistryServer): Promise<'back' | 'deleted
                 const newUrl = await p.text({
                     message: 'URL:',
                     defaultValue: serverRef.url,
-                    validate: (val) => val.trim() ? undefined : 'URL required',
+                    validate: (val) => val?.trim() ? undefined : 'URL required',
                 });
 
                 if (p.isCancel(newUrl)) continue;
@@ -242,7 +242,7 @@ async function editEnvVars(server: RegistryServer & { transport: 'stdio' }): Pro
         if (selected === '__add__') {
             const key = await p.text({
                 message: 'Variable name:',
-                validate: (val) => val.trim() ? undefined : 'Name required',
+                validate: (val) => val?.trim() ? undefined : 'Name required',
             });
 
             if (p.isCancel(key)) continue;

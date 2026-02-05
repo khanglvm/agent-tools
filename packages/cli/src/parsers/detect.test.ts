@@ -202,5 +202,70 @@ mcpServers:
             expect(result.servers.api.url).toBe('https://api.example.com/mcp');
             expect(result.servers.api.headers).toEqual({ Authorization: 'Bearer token' });
         });
+
+        it('parses headers with extended schema', () => {
+            const input = JSON.stringify({
+                mcpServers: {
+                    api: {
+                        url: 'https://api.example.com/mcp',
+                        headers: {
+                            Authorization: {
+                                value: null,
+                                description: 'Bearer token',
+                                hidden: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            const result = parseConfig(input);
+            expect(result.servers.api.headers?.Authorization).toEqual({
+                value: null,
+                description: 'Bearer token',
+                hidden: true
+            });
+        });
+
+        it('preserves plain string headers', () => {
+            const input = JSON.stringify({
+                mcpServers: {
+                    api: {
+                        url: 'https://api.example.com/mcp',
+                        headers: { 'x-static': 'value' }
+                    }
+                }
+            });
+
+            const result = parseConfig(input);
+            expect(result.servers.api.headers?.['x-static']).toBe('value');
+        });
+
+        it('supports mixed header formats', () => {
+            const input = JSON.stringify({
+                mcpServers: {
+                    api: {
+                        url: 'https://api.example.com/mcp',
+                        headers: {
+                            'x-static': 'plain-value',
+                            Authorization: {
+                                value: null,
+                                description: 'API Key',
+                                helpUrl: 'https://example.com/keys'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const result = parseConfig(input);
+            expect(result.servers.api.headers?.['x-static']).toBe('plain-value');
+            expect(result.servers.api.headers?.Authorization).toEqual({
+                value: null,
+                description: 'API Key',
+                helpUrl: 'https://example.com/keys'
+            });
+        });
     });
 });
+

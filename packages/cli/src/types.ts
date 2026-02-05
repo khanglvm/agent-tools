@@ -67,7 +67,11 @@ export interface McpServerConfig {
     env?: Record<string, string | null | EnvVarSchema>;
     type?: 'stdio' | 'http' | 'sse';
     url?: string;
-    headers?: Record<string, string>;
+    /**
+     * HTTP headers for remote transports.
+     * Supports same extended schema as env for descriptions, help URLs, and keychain.
+     */
+    headers?: Record<string, string | null | EnvVarSchema>;
 }
 
 /**
@@ -105,5 +109,14 @@ export interface CliEnvConfig {
     helpUrl?: string;
     required?: boolean;
     hidden?: boolean;
+}
+
+/**
+ * Options for automated (-y) installation mode
+ */
+export interface AutoOptions {
+    enabled: boolean;
+    scope: InstallScope;
+    preAgents?: AgentType[];
 }
 

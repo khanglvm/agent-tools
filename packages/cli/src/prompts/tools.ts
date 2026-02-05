@@ -13,10 +13,14 @@ import { multiselectWithAll } from './shared.js';
 
 /**
  * Show tool selector (multiselect) with scope selection
+ * @param installedAgents - List of detected installed agents
+ * @param config - Parsed MCP configuration
+ * @param preAgents - Optional pre-selected agents from CLI args (will be filtered by scope/transport)
  */
 export async function showToolSelector(
     installedAgents: AgentType[],
-    config: ParsedMcpConfig
+    config: ParsedMcpConfig,
+    preAgents?: AgentType[]
 ) {
     // Step 1: Scope selection
     const scope = await p.select({
@@ -33,11 +37,36 @@ export async function showToolSelector(
         return;
     }
 
-    // Filter agents based on scope support
+    // Step 2: Filter agents based on scope support
     const localSupportAgents = getAgentsWithLocalSupport();
-    const availableAgents = scope === 'project'
+    let availableAgents = scope === 'project'
         ? installedAgents.filter(a => localSupportAgents.includes(a))
         : installedAgents;
+
+    // Step 3: Apply pre-selection filter if provided
+    let preSelectedAgents: AgentType[] | undefined;
+    if (preAgents && preAgents.length > 0) {
+        // Filter pre-agents by:
+        // 1. Must be installed
+        // 2. Must support selected scope
+        const validPreAgents = preAgents.filter(a => availableAgents.includes(a));
+        const invalidPreAgents = preAgents.filter(a => !availableAgents.includes(a));
+
+        if (invalidPreAgents.length > 0) {
+            const reasons = invalidPreAgents.map(a => {
+                if (!installedAgents.includes(a)) return `${agents[a].displayName} (not installed)`;
+                if (scope === 'project' && !localSupportAgents.includes(a)) {
+                    return `${agents[a].displayName} (global-only)`;
+                }
+                return agents[a].displayName;
+            });
+            p.log.warn(`Skipped incompatible agents: ${reasons.join(', ')}`);
+        }
+
+        if (validPreAgents.length > 0) {
+            preSelectedAgents = validPreAgents;
+        }
+    }
 
     // Show warning if no agents support local config
     if (scope === 'project' && availableAgents.length === 0) {
@@ -50,7 +79,7 @@ export async function showToolSelector(
         return;
     }
 
-    // Step 2: Build multiselect items with registry toggle at top
+    // Step 4: Build multiselect items with registry toggle at top
     const registryItem = {
         value: '__registry__' as const,
         label: 'Add to registry',
@@ -73,9 +102,15 @@ export async function showToolSelector(
     }
 
     const allItems = [registryItem, ...agentItems];
-    const initialValues = scope === 'global'
-        ? ['__registry__']
-        : [];
+
+    // Set initial values: registry for global, pre-selected agents if provided
+    const initialValues: string[] = [];
+    if (scope === 'global') {
+        initialValues.push('__registry__');
+    }
+    if (preSelectedAgents) {
+        initialValues.push(...preSelectedAgents);
+    }
 
     const selectedItems = await p.multiselect({
         message: 'Select targets: (space: toggle, a: all, i: invert)',

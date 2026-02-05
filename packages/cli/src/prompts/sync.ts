@@ -4,15 +4,14 @@
 
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
-import type { AgentType, McpServerConfig } from '../types.js';
+import type { AgentType, McpServerConfig, ParsedMcpConfig } from '../types.js';
 import { agents, getAgentConfig, detectInstalledAgents } from '../agents.js';
 import { loadRegistry, listServers } from '../registry/store.js';
 import type { RegistryServer } from '../registry/types.js';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { homedir } from 'node:os';
-import { getSecret, resolveEnvWithSecrets } from '../registry/keychain.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { getSecret } from '../registry/keychain.js';
 import { multiselectWithAll } from './shared.js';
+import { injectConfig } from '../core/injector.js';
 
 /**
  * Result type for navigation
@@ -162,47 +161,30 @@ async function findDuplicates(
 }
 
 /**
- * Inject servers into an agent's config
+ * Inject servers into an agent's config using the centralized injector
+ * This ensures proper agent-specific transformations are applied
  */
 async function injectServersToAgent(
     agentType: AgentType,
     servers: RegistryServer[]
 ): Promise<void> {
-    const config = getAgentConfig(agentType);
+    // Convert registry servers to ParsedMcpConfig format
+    const serverConfigs: Record<string, McpServerConfig> = {};
 
-    // Ensure directory exists
-    const dir = dirname(config.mcpConfigPath);
-    if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-    }
-
-    // Read existing config or create new
-    let existingConfig: Record<string, unknown> = {};
-    if (existsSync(config.mcpConfigPath)) {
-        try {
-            const content = readFileSync(config.mcpConfigPath, 'utf-8');
-            existingConfig = JSON.parse(content);
-        } catch {
-            existingConfig = {};
-        }
-    }
-
-    // Get or create servers object
-    const serversObj = (existingConfig[config.wrapperKey] || {}) as Record<string, McpServerConfig>;
-
-    // Add/update servers
     for (const server of servers) {
         const serverConfig = await registryServerToConfig(server);
-        serversObj[server.name] = serverConfig;
+        // Use original name - injectConfig will apply mcpm_ prefix automatically
+        serverConfigs[server.name] = serverConfig;
     }
 
-    existingConfig[config.wrapperKey] = serversObj;
+    const parsedConfig: ParsedMcpConfig = {
+        servers: serverConfigs,
+        sourceFormat: 'json',
+        sourceWrapperKey: 'mcpServers',
+    };
 
-    // Write back
-    writeFileSync(
-        config.mcpConfigPath,
-        JSON.stringify(existingConfig, null, 2) + '\n'
-    );
+    // Use centralized injector which handles agent-specific transformations
+    await injectConfig(agentType, parsedConfig);
 }
 
 /**

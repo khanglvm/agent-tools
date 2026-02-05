@@ -224,6 +224,15 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 
 ## Changelog
 
+**v1.0.0**
+- `feat`: Format-aware centralized injector with native JSON, YAML, and TOML support.
+- `feat`: Automatic OS keychain secret resolution during config injection.
+- `feat`: Pre-install MCP server validation with available tools preview.
+- `feat`: Consistent `mcpm_` prefix enforcement across all agent configurations.
+- `feat`: `--agent:` CLI argument for pre-selecting target agents.
+- `feat`: `-y` / `--yes` auto-install mode with concise error summaries.
+- `refactor`: Unified credential handling for stdio (env) and HTTP/SSE (headers) transports.
+
 **v0.1.7**
 - `feat`: Auto-inject `-y` flag for `npx`/`pnpx` commands during validation to prevent interactive prompts.
 - `test`: Add unit tests for auto-execute flag injection.

@@ -47,19 +47,12 @@ export async function showValidationScreen(
         // Show results for each server
         for (const result of results) {
             if (result.success && result.tools) {
-                // Success: show server name and tools
-                p.log.success(`${pc.cyan(result.serverName)}`);
-                if (result.tools.length === 0) {
-                    p.log.message(`  ${pc.dim('No tools exposed')}`);
-                } else {
-                    p.log.message(`  ${pc.dim(`${result.tools.length} tool(s):`)}`);
-                    for (const tool of result.tools) {
-                        const desc = tool.description
-                            ? ` ${pc.dim(`— ${tool.description.slice(0, 50)}${tool.description.length > 50 ? '...' : ''}`)}`
-                            : '';
-                        p.log.message(`    ${pc.yellow('•')} ${tool.name}${desc}`);
-                    }
-                }
+                // Success: show server name and tool count
+                const toolCount = result.tools.length;
+                const toolText = toolCount === 0
+                    ? pc.dim('No tools exposed')
+                    : pc.green(`${toolCount} tool${toolCount !== 1 ? 's' : ''} available`);
+                p.log.success(`${pc.cyan(result.serverName)} — ${toolText}`);
             } else {
                 // Failure: show server name and error
                 p.log.error(`${pc.cyan(result.serverName)}`);

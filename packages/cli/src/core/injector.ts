@@ -3,6 +3,10 @@ import { dirname } from 'node:path';
 import type { AgentType, ParsedMcpConfig, McpServerConfig } from '../types.js';
 import { getAgentConfig } from '../agents.js';
 import { createParser } from '../parsers/factory.js';
+import { resolveEnvWithSecrets } from '../registry/keychain.js';
+import { addPrefix, hasPrefix } from '../registry/naming.js';
+import TOML from '@iarna/toml';
+import yaml from 'js-yaml';
 
 /**
  * Inject MCP configuration into an agent's config file
@@ -13,10 +17,13 @@ export async function injectConfig(
 ): Promise<void> {
     const agentConfig = getAgentConfig(agentType);
 
+    // Resolve keychain references in env vars before injecting
+    const resolvedServers = await resolveKeychainRefs(config.servers);
+
     // For XML format (JetBrains), use the parser directly
     if (agentConfig.configFormat === 'xml') {
         const parser = createParser(agentType);
-        await parser.write(config.servers, { createIfMissing: true, backup: true, merge: true });
+        await parser.write(resolvedServers, { createIfMissing: true, backup: true, merge: true });
         return;
     }
 
@@ -28,8 +35,18 @@ export async function injectConfig(
         mkdirSync(dir, { recursive: true });
     }
 
+    // Apply mcpm_ prefix to server names for consistency across all flows
+    const prefixedServers: Record<string, McpServerConfig> = {};
+    for (const [name, server] of Object.entries(resolvedServers)) {
+        const prefixedName = hasPrefix(name) ? name : addPrefix(name, agentType);
+        prefixedServers[prefixedName] = server;
+    }
+
     // Transform servers for this agent
-    const transformedServers = transformForAgent(agentType, config.servers);
+    const transformedServers = transformForAgent(agentType, prefixedServers);
+
+    // Determine format from agent config or file extension
+    const format = agentConfig.configFormat || getFormatFromPath(configPath);
 
     // Read existing config or create new
     let existingConfig: Record<string, unknown> = {};
@@ -37,7 +54,7 @@ export async function injectConfig(
     if (existsSync(configPath)) {
         try {
             const content = readFileSync(configPath, 'utf-8');
-            existingConfig = JSON.parse(content);
+            existingConfig = parseConfig(content, format);
         } catch {
             // If parse fails, start fresh
             existingConfig = {};
@@ -56,8 +73,81 @@ export async function injectConfig(
         },
     };
 
-    // Write config
-    writeFileSync(configPath, JSON.stringify(newConfig, null, 2) + '\n');
+    // Write config in the correct format
+    const output = stringifyConfig(newConfig, format);
+    writeFileSync(configPath, output);
+}
+
+/**
+ * Detect config file format from file extension
+ */
+function getFormatFromPath(path: string): 'json' | 'yaml' | 'toml' {
+    if (path.endsWith('.toml')) return 'toml';
+    if (path.endsWith('.yaml') || path.endsWith('.yml')) return 'yaml';
+    return 'json';
+}
+
+/**
+ * Parse config content based on format
+ */
+function parseConfig(content: string, format: string): Record<string, unknown> {
+    switch (format) {
+        case 'toml':
+            return TOML.parse(content) as Record<string, unknown>;
+        case 'yaml':
+            return (yaml.load(content) as Record<string, unknown>) || {};
+        case 'json':
+        default:
+            return JSON.parse(content);
+    }
+}
+
+/**
+ * Stringify config based on format
+ */
+function stringifyConfig(config: Record<string, unknown>, format: string): string {
+    switch (format) {
+        case 'toml':
+            return TOML.stringify(config as TOML.JsonMap);
+        case 'yaml':
+            return yaml.dump(config, { indent: 2, lineWidth: -1 });
+        case 'json':
+        default:
+            return JSON.stringify(config, null, 2) + '\n';
+    }
+}
+
+/**
+ * Resolve keychain references in server env vars.
+ * Converts "keychain:serverName.envName" to actual secret values.
+ * This ensures agents receive real values, not keychain references.
+ */
+async function resolveKeychainRefs(
+    servers: Record<string, McpServerConfig>
+): Promise<Record<string, McpServerConfig>> {
+    const resolved: Record<string, McpServerConfig> = {};
+
+    for (const [name, server] of Object.entries(servers)) {
+        if (server.env) {
+            // Convert env to plain strings and resolve keychain refs
+            const plainEnv: Record<string, string> = {};
+            for (const [key, value] of Object.entries(server.env)) {
+                if (typeof value === 'string') {
+                    plainEnv[key] = value;
+                } else if (value && typeof value === 'object' && value.value) {
+                    plainEnv[key] = String(value.value);
+                }
+                // Skip null/undefined values
+            }
+
+            const resolvedEnv = await resolveEnvWithSecrets(name, plainEnv);
+            resolved[name] = { ...server, env: resolvedEnv };
+        } else {
+            resolved[name] = server;
+        }
+    }
+
+    return resolved;
 }
 
 /**
@@ -248,6 +338,9 @@ export async function injectLocalConfig(
         throw new Error(`${agentConfig.displayName} does not support project-scope config`);
     }
 
+    // Resolve keychain references in env vars before injecting
+    const resolvedServers = await resolveKeychainRefs(config.servers);
+
     const configPath = agentConfig.localConfigPath;
 
     // Ensure directory exists
@@ -257,7 +350,7 @@ export async function injectLocalConfig(
     }
 
     // Transform servers for this agent
-    const transformedServers = transformForAgent(agentType, config.servers);
+    const transformedServers = transformForAgent(agentType, resolvedServers);
 
     // Read existing config or create new
     let existingConfig: Record<string, unknown> = {};

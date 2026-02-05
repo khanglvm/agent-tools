@@ -6,6 +6,7 @@ import { showEnvPrompts } from './credentials.js';
 import { showToolSelector } from './tools.js';
 import { plural } from './shared.js';
 import { checkAutoConditions, runAutoInstall } from './yolo.js';
+import { showValidationScreen, showValidationConfirmation } from './validation.js';
 
 /**
  * Supported git providers for display
@@ -167,7 +168,35 @@ export async function showGitPrompt(
             return false;
         }
 
-        // Select tools
+        // Validate MCP server(s) and show available tools
+        const validationResult = await showValidationScreen(configWithEnv);
+
+        // If validation failed, ask user what to do
+        if (!validationResult.allPassed) {
+            const decision = await showValidationConfirmation(validationResult);
+
+            if (decision === 'cancel') {
+                p.log.info('Cancelled');
+                return false;
+            }
+
+            if (decision === 'back') {
+                // Re-prompt for env vars and try again
+                p.log.info('Going back to edit configuration...');
+                return await showGitPrompt(
+                    installedAgents,
+                    initialUrl,
+                    preEnv,
+                    note,
+                    preHeaders,
+                    preAgents,
+                    autoOptions
+                );
+            }
+            // decision === 'install' - proceed anyway
+        }
+
+        // Select agents and install (agent selector handles the final confirmation)
         await showToolSelector(installedAgents, configWithEnv, preAgents);
         return true;
 

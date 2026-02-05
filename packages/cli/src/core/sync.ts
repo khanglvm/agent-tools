@@ -4,12 +4,14 @@
 
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
-import type { AgentType } from '../types.js';
+import type { AgentType, McpServerConfig, ParsedMcpConfig } from '../types.js';
 import type { RegistryServer } from '../registry/types.js';
 import { loadRegistry, listServers, addPrefix, hasPrefix } from '../registry/index.js';
 import { createParser } from '../parsers/factory.js';
 import { getAgentConfig, detectInstalledAgents } from '../agents.js';
 import { isCancel } from '@clack/prompts';
+import { injectConfig } from './injector.js';
+import { getSecret } from '../registry/keychain.js';
 
 /**
  * Conflict resolution strategy
@@ -87,11 +89,7 @@ export async function syncServerToAgent(
     agentType: AgentType,
     strategy: ConflictStrategy = 'skip'
 ): Promise<{ success: boolean; action: 'added' | 'replaced' | 'skipped' | 'error'; message: string }> {
-    const agentConfig = getAgentConfig(agentType);
     const parser = createParser(agentType);
-
-    // Note: Transport compatibility would require adding transportSupport to AgentConfig
-    // For now, we assume all agents support all transports (can be added later)
 
     const config = await parser.read();
     const existing = config?.servers || {};
@@ -125,14 +123,20 @@ export async function syncServerToAgent(
         }
     }
 
-    // Build MCP config for this agent
-    const mcpConfig = buildMcpConfig(server);
-
-    // Merge and write
-    const merged = { ...existing, [prefixedName]: mcpConfig };
-
     try {
-        parser.write(merged);
+        // Convert registry server to McpServerConfig format
+        const serverConfig = await registryServerToMcpConfig(server);
+
+        // Use centralized injector for proper agent transforms and keychain resolution
+        // Note: injectConfig applies mcpm_ prefix automatically
+        const parsedConfig: ParsedMcpConfig = {
+            servers: { [server.name]: serverConfig },
+            sourceFormat: 'json',
+            sourceWrapperKey: 'mcpServers',
+        };
+
+        await injectConfig(agentType, parsedConfig);
+
         return {
             success: true,
             action: hasConflict ? 'replaced' : 'added',
@@ -150,28 +154,46 @@ export async function syncServerToAgent(
 }
 
 /**
- * Build MCP server config for a specific agent
+ * Convert RegistryServer to McpServerConfig, resolving keychain secrets
  */
-function buildMcpConfig(server: RegistryServer): Record<string, unknown> {
-    const config: Record<string, unknown> = {};
-
+async function registryServerToMcpConfig(server: RegistryServer): Promise<McpServerConfig> {
     if (server.transport === 'stdio') {
-        config.command = server.command;
-        if (server.args?.length) {
-            config.args = server.args;
+        const env: Record<string, string> = {};
+
+        // Resolve keychain secrets
+        if (server.env) {
+            for (const [key, value] of Object.entries(server.env)) {
+                if (value.startsWith('keychain:')) {
+                    // Parse keychain reference: keychain:serverName.envName
+                    const ref = value.slice('keychain:'.length);
+                    const parts = ref.split('.');
+                    if (parts.length >= 2) {
+                        const serverName = parts[0];
+                        const envName = parts.slice(1).join('.');
+                        const secret = await getSecret(serverName, envName);
+                        env[key] = secret || value; // Fallback to keychain reference if not found
+                    } else {
+                        env[key] = value;
+                    }
+                } else {
+                    env[key] = value;
+                }
+            }
         }
+
+        return {
+            type: 'stdio',
+            command: server.command,
+            args: server.args,
+            env: Object.keys(env).length > 0 ? env : undefined,
+        };
     } else {
-        config.url = server.url;
-        if (server.headers) {
-            config.headers = server.headers;
-        }
+        return {
+            type: server.transport,
+            url: server.url,
+            headers: server.headers,
+        };
     }
-
-    if (server.env && Object.keys(server.env).length > 0) {
-        config.env = server.env;
-    }
-
-    return config;
 }
 
 /**
@@ -316,8 +338,8 @@ export async function detectDrift(agentTypes?: AgentType[]): Promise<Map<AgentTy
 
             if (!agentConfig) continue;
 
-            // Compare configs
-            const registryMcp = buildMcpConfig(server);
+            // Compare configs (resolve secrets for comparison)
+            const registryMcp = await registryServerToMcpConfig(server);
             if (JSON.stringify(agentConfig) !== JSON.stringify(registryMcp)) {
                 driftedServers.push(server.name);
             }

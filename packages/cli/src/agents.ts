@@ -112,10 +112,13 @@ export const agents: Record<AgentType, AgentConfig> = {
     droid: {
         name: 'droid',
         displayName: 'Factory Droid',
+        // Official docs: https://docs.factory.ai/cli/configuration/mcp
         configDir: join(home, '.factory'),
         mcpConfigPath: join(home, '.factory/mcp.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(join(home, '.factory')),
+        supportsLocalConfig: true,
+        localConfigPath: '.factory/mcp.json',
     },
     'gemini-cli': {
         name: 'gemini-cli',

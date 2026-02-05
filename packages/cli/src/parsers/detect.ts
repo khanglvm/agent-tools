@@ -1,4 +1,5 @@
 import yaml from 'js-yaml';
+import * as TOML from '@iarna/toml';
 import type { ParsedMcpConfig, WrapperKey, McpServerConfig } from '../types.js';
 
 /**
@@ -23,8 +24,29 @@ export function parseConfig(input: string): ParsedMcpConfig {
         return parseJsonConfig(trimmed);
     }
 
+    // Try TOML (starts with [ for section or key = for assignment)
+    if (isTOML(trimmed)) {
+        return parseTomlConfig(trimmed);
+    }
+
     // Try YAML
     return parseYamlConfig(trimmed);
+}
+
+/**
+ * Check if input looks like TOML format
+ */
+function isTOML(input: string): boolean {
+    // TOML sections start with [
+    if (input.startsWith('[')) return true;
+
+    // Check for TOML-style key = value patterns at start of lines
+    const tomlPatterns = [
+        /^\s*\w+\s*=\s*["\[\{]/m,  // key = "value" or key = [ or key = {
+        /^\s*\[[\w.]+\]/m,         // [section] or [section.subsection]
+    ];
+
+    return tomlPatterns.some(p => p.test(input));
 }
 
 /**
@@ -62,11 +84,30 @@ function parseYamlConfig(input: string): ParsedMcpConfig {
 }
 
 /**
+ * Parse TOML configuration
+ */
+function parseTomlConfig(input: string): ParsedMcpConfig {
+    let parsed: Record<string, unknown>;
+
+    try {
+        parsed = TOML.parse(input) as Record<string, unknown>;
+    } catch (err) {
+        throw new Error(`Invalid TOML: ${err instanceof Error ? err.message : 'Parse error'}`);
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+        throw new Error('Invalid TOML: must be an object');
+    }
+
+    return extractServers(parsed, 'toml');
+}
+
+/**
  * Extract servers from parsed config, auto-detecting wrapper key
  */
 function extractServers(
     parsed: Record<string, unknown>,
-    sourceFormat: 'json' | 'yaml'
+    sourceFormat: 'json' | 'yaml' | 'toml'
 ): ParsedMcpConfig {
     // Find wrapper key
     let wrapperKey: WrapperKey | string | undefined;

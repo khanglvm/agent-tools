@@ -7,6 +7,63 @@ import { showGitPrompt } from './prompts/github.js';
 import { runBuildMode } from './prompts/build.js';
 import { runCommand } from './commands/index.js';
 
+/**
+ * Detect if input looks like direct MCP config data (JSON/YAML/TOML)
+ * vs a URL or CLI command
+ */
+function isDirectConfig(input: string): boolean {
+    const trimmed = input.trim();
+
+    // Skip URLs and CLI commands
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return false;
+    if (trimmed.startsWith('-')) return false;
+
+    // JSON: starts with {
+    if (trimmed.startsWith('{')) return true;
+
+    // TOML: starts with [ for section
+    if (trimmed.startsWith('[')) return true;
+
+    // YAML/TOML with known wrapper keys
+    const configPatterns = [
+        /^\s*mcpServers\s*[:\=]/im,
+        /^\s*mcp_servers\s*[:\=]/im,
+        /^\s*servers\s*[:\=]/im,
+        /^\s*context_servers\s*[:\=]/im,
+        /^\s*\[mcpServers\]/im,
+        /^\s*\[mcp_servers\]/im,
+    ];
+
+    return configPatterns.some(p => p.test(trimmed));
+}
+
+/**
+ * Detect if URL points directly to a raw config file
+ * (e.g., raw.githubusercontent.com/.../mcp.json)
+ */
+function isRawConfigUrl(url: string): boolean {
+    // Known raw file hosts
+    const rawHosts = [
+        'raw.githubusercontent.com',
+        'raw.github.com',
+        'gist.githubusercontent.com',
+        'gitlab.com/-/raw/',
+        'gitlab.com/.../raw/',
+    ];
+
+    // Check if URL is from a raw host
+    const isRawHost = rawHosts.some(host => url.includes(host));
+
+    // Check for config file extensions
+    const configExtensions = ['.json', '.yaml', '.yml', '.toml'];
+    const hasConfigExt = configExtensions.some(ext => url.toLowerCase().endsWith(ext));
+
+    // Also detect URLs with /raw/ path segment and config extension
+    const hasRawPath = url.includes('/raw/') || url.includes('/-/raw/');
+
+    return isRawHost || (hasRawPath && hasConfigExt) || hasConfigExt;
+}
+
 async function main() {
     const args = process.argv.slice(2);
 
@@ -33,6 +90,14 @@ async function main() {
     } else if (args[0] === '--build') {
         // Build mode
         await runBuildMode();
+    } else if (isDirectConfig(args[0])) {
+        // Direct JSON/YAML/TOML config data passed as argument
+        const { showDirectConfigPrompt } = await import('./prompts/direct.js');
+        await showDirectConfigPrompt(installedAgents, args[0]);
+    } else if (args[0].startsWith('http') && isRawConfigUrl(args[0])) {
+        // URL pointing directly to a config file (raw GitHub, etc.)
+        const { showRawConfigPrompt } = await import('./prompts/raw-url.js');
+        await showRawConfigPrompt(installedAgents, args[0]);
     } else if (args[0].startsWith('http')) {
         // Git repository URL with optional --env:KEY=VALUE, --header:KEY=VALUE, --agent:<name>, --scope:, -y, and --note:"text" args
         const url = args[0];

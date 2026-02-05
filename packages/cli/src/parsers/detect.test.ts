@@ -267,5 +267,63 @@ mcpServers:
             });
         });
     });
+
+    describe('TOML parsing', () => {
+        it('parses TOML with mcpServers section', () => {
+            const input = `
+[mcpServers.github]
+command = "npx"
+args = ["-y", "@mcp/github"]
+`;
+            const result = parseConfig(input);
+            expect(result.sourceFormat).toBe('toml');
+            expect(result.servers.github.command).toBe('npx');
+            expect(result.servers.github.args).toEqual(['-y', '@mcp/github']);
+        });
+
+        it('parses TOML with mcp_servers section (Codex format)', () => {
+            const input = `
+[mcp_servers.test]
+command = "echo"
+args = ["hello"]
+`;
+            const result = parseConfig(input);
+            expect(result.sourceFormat).toBe('toml');
+            expect(result.sourceWrapperKey).toBe('mcp_servers');
+            expect(result.servers.test.command).toBe('echo');
+        });
+
+        it('parses TOML with environment variables', () => {
+            const input = `
+[mcpServers.api]
+command = "npx"
+args = ["-y", "@mcp/api"]
+
+[mcpServers.api.env]
+API_KEY = "secret-key"
+DEBUG = "true"
+`;
+            const result = parseConfig(input);
+            expect(result.servers.api.env).toEqual({
+                API_KEY: 'secret-key',
+                DEBUG: 'true',
+            });
+        });
+
+        it('parses TOML with HTTP transport', () => {
+            const input = `
+[mcpServers.remote]
+url = "https://api.example.com/mcp"
+type = "http"
+`;
+            const result = parseConfig(input);
+            expect(result.servers.remote.url).toBe('https://api.example.com/mcp');
+            expect(result.servers.remote.type).toBe('http');
+        });
+
+        it('throws on invalid TOML', () => {
+            expect(() => parseConfig('[invalid')).toThrow('Invalid TOML');
+        });
+    });
 });
 

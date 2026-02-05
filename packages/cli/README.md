@@ -224,6 +224,12 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 
 ## Changelog
 
+**v1.0.1**
+- `feat`: Direct JSON/YAML/TOML config data input support (paste config as CLI argument).
+- `feat`: TOML format parsing for input configurations and README extraction.
+- `feat`: Raw config URL support (fetch config directly from URLs like raw.githubusercontent.com).
+- `fix`: Extended env schema now falls back to auto-detection for hidden field when not explicitly set.
+
 **v1.0.0**
 - `feat`: Format-aware centralized injector with native JSON, YAML, and TOML support.
 - `feat`: Automatic OS keychain secret resolution during config injection.

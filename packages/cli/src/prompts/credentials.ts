@@ -147,8 +147,9 @@ async function promptForCredentials(
 
         // Smart detection: check name patterns
         const nameHint = isSecretName(key);
+        // If extended schema has explicit hidden value, use it; otherwise fall back to auto-detection
         const isHidden = isExtended
-            ? (schema as EnvVarSchema).hidden
+            ? ((schema as EnvVarSchema).hidden ?? nameHint)
             : nameHint;
 
         // Show description if available

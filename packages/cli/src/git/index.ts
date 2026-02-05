@@ -116,11 +116,14 @@ export function extractMcpFromMarkdown(markdown: string): ParsedMcpConfig | null
         const lang = match[1]?.toLowerCase() || '';
         const content = match[2].trim();
 
-        // Check if it looks like MCP config (JSON or YAML)
+        // Check if it looks like MCP config (JSON, YAML, or TOML)
         if (
             content.includes('mcpServers') ||
             content.includes('mcp_servers') ||
-            (content.startsWith('{') && (content.includes('"command"') || content.includes('"url"')))
+            content.includes('[mcpServers') ||
+            content.includes('[mcp_servers') ||
+            (content.startsWith('{') && (content.includes('"command"') || content.includes('"url"'))) ||
+            (content.startsWith('[') && (content.includes('command =') || content.includes('url =')))
         ) {
             candidates.push({ content, lang });
         }

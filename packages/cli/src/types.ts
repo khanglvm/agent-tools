@@ -90,7 +90,7 @@ export interface EnvVarSchema {
  */
 export interface ParsedMcpConfig {
     servers: Record<string, McpServerConfig>;
-    sourceFormat: 'json' | 'yaml';
+    sourceFormat: 'json' | 'yaml' | 'toml';
     sourceWrapperKey: WrapperKey | string;
 }
 

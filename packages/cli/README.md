@@ -5,7 +5,7 @@ MCP Manager — Centralized MCP server configuration for AI coding agents.
 ## Features
 
 - Auto-detects AI coding agents
-- Paste JSON/YAML MCP configs from READMEs
+- Paste JSON/YAML/TOML MCP configs from READMEs
 - Install from **GitHub, GitLab, Bitbucket, Codeberg**
 - Keychain storage for secrets
 - Sync registry to multiple agents at once
@@ -20,13 +20,28 @@ MCP Manager — Centralized MCP server configuration for AI coding agents.
 | **Sync** | Push configs from registry → agent config files |
 | **Import** | Pull existing configs from agent config files → registry |
 
-## Quick Usage
+---
+
+## For MCP Users
+
+Manage MCP server configurations across your AI coding agents.
+
+### Quick Start
 
 ```bash
-# Interactive mode
+# Interactive mode (recommended)
 npx @khanglvm/mcpm
 
-# CLI commands
+# Or paste configuration
+npx @khanglvm/mcpm --paste
+```
+
+### CLI Commands
+
+```bash
+npx @khanglvm/mcpm                   # Interactive menu
+npx @khanglvm/mcpm --paste           # Paste JSON/YAML/TOML configuration
+npx @khanglvm/mcpm --build           # Build configuration step-by-step
 npx @khanglvm/mcpm list              # List saved servers from registry
 npx @khanglvm/mcpm add               # Add server interactively
 npx @khanglvm/mcpm add <git-url>     # Add from Git URL
@@ -36,40 +51,11 @@ npx @khanglvm/mcpm status            # Check sync status
 npx @khanglvm/mcpm remove <name>     # Remove MCP server
 ```
 
-## Options
-
-```bash
-npx @khanglvm/mcpm --paste           # Paste configuration mode
-npx @khanglvm/mcpm --build           # Build step-by-step
-npx @khanglvm/mcpm <repo-url>        # Install from Git repo (GitHub/GitLab/Bitbucket/Codeberg)
-npx @khanglvm/mcpm <repo-url> -y     # Automated install (no prompts if all credentials provided)
-npx @khanglvm/mcpm <raw-url>         # Install from raw config URL (raw.githubusercontent.com, etc.)
-npx @khanglvm/mcpm '<json/yaml/toml>' # Install from inline config data
-```
-
-### Inline Config Examples
-
-**Simple (prompts for credentials):**
-```bash
-npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":null}}}'
-```
-
-**With helper text:**
-```bash
-npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":{"value":null,"description":"Personal Access Token","helpUrl":"https://github.com/settings/tokens"}}}}'
-```
-
-**Auto-install (no prompts):**
-```bash
-npx @khanglvm/mcpm '{"fetch":{"command":"uvx","args":["mcp-server-fetch"]}}' -y
-```
-
+---
 
 ## For MCP Developers
 
-**mcpm** helps users install your MCP server with zero friction:
-
----
+Help users install your MCP server with zero friction. Share one-liner install commands.
 
 ### Option 1: Add `mcp.json` to Your Repository
 
@@ -180,6 +166,32 @@ npx @khanglvm/mcpm https://github.com/you/my-server \
 > **Auto mode (`-y`)**: Automatically validates MCP servers and installs to all compatible agents without prompts. Falls back to interactive mode if required credentials are missing.
 
 > All modifiers are optional. `--env` applies to stdio servers, `--header` applies to HTTP/SSE servers. `--agent` can be repeated (e.g., `--agent:cursor --agent:claude-code`).
+
+---
+
+### Option 3: Share Inline Config (No Repository Needed)
+
+Share a one-liner with embedded config — no `mcp.json` or repo required:
+
+**Simple (prompts for credentials):**
+```bash
+npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":null}}}'
+```
+
+**With helper text:**
+```bash
+npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":{"value":null,"description":"Personal Access Token","helpUrl":"https://github.com/settings/tokens"}}}}'
+```
+
+**Auto-install (no prompts):**
+```bash
+npx @khanglvm/mcpm '{"fetch":{"command":"uvx","args":["mcp-server-fetch"]}}' -y
+```
+
+**From raw URL:**
+```bash
+npx @khanglvm/mcpm https://raw.githubusercontent.com/you/repo/main/mcp.json
+```
 
 ---
 

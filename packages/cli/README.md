@@ -43,7 +43,27 @@ npx @khanglvm/mcpm --paste           # Paste configuration mode
 npx @khanglvm/mcpm --build           # Build step-by-step
 npx @khanglvm/mcpm <repo-url>        # Install from Git repo (GitHub/GitLab/Bitbucket/Codeberg)
 npx @khanglvm/mcpm <repo-url> -y     # Automated install (no prompts if all credentials provided)
+npx @khanglvm/mcpm <raw-url>         # Install from raw config URL (raw.githubusercontent.com, etc.)
+npx @khanglvm/mcpm '<json/yaml/toml>' # Install from inline config data
 ```
+
+### Inline Config Examples
+
+**Simple (prompts for credentials):**
+```bash
+npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":null}}}'
+```
+
+**With helper text:**
+```bash
+npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":{"value":null,"description":"Personal Access Token","helpUrl":"https://github.com/settings/tokens"}}}}'
+```
+
+**Auto-install (no prompts):**
+```bash
+npx @khanglvm/mcpm '{"fetch":{"command":"uvx","args":["mcp-server-fetch"]}}' -y
+```
+
 
 ## For MCP Developers
 

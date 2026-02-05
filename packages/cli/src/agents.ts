@@ -154,6 +154,16 @@ export const agents: Record<AgentType, AgentConfig> = {
         configFormat: 'xml',
         detectInstalled: () => detectJetBrainsIDEs().length > 0,
     },
+    'jetbrains-github-copilot': {
+        name: 'jetbrains-github-copilot',
+        displayName: 'GitHub Copilot for JetBrains IDE',
+        configDir: join(home, 'Library/Application Support/github-copilot/intellij'),
+        mcpConfigPath: join(home, 'Library/Application Support/github-copilot/intellij/mcp.json'),
+        wrapperKey: 'servers',
+        detectInstalled: () => existsSync(join(home, 'Library/Application Support/github-copilot/intellij')),
+        supportsLocalConfig: true,
+        localConfigPath: '.vscode/mcp.json',
+    },
     opencode: {
         name: 'opencode',
         displayName: 'OpenCode',

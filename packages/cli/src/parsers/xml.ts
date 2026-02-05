@@ -306,7 +306,13 @@ function generateXmlContent(servers: Record<string, McpServerConfig>): string {
         const args = server.args?.join(' ') || '';
         const envEntries = server.env
             ? Object.entries(server.env)
-                .map(([k, v]) => `        <env name="${escapeXml(k)}" value="${escapeXml(v ?? '')}" />`)
+                .map(([k, v]) => {
+                    // Handle both simple string and EnvVarSchema
+                    const value = typeof v === 'object' && v !== null && 'value' in v
+                        ? (v.value ?? '')
+                        : (v ?? '');
+                    return `        <env name="${escapeXml(k)}" value="${escapeXml(value)}" />`;
+                })
                 .join('\n')
             : '';
 

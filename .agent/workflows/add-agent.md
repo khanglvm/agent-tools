@@ -169,8 +169,10 @@ yarn test
 
 ### Step 4.3: Documentation Update
 
-- [ ] Update README if documenting supported agents
-- [ ] Update agent count in relevant docs
+File: `packages/cli/README.md`
+
+- [ ] Update agent count in Features section (e.g., "Auto-detects 21 AI coding agents")
+- [ ] Add new agent row to Supported Agents table with: Agent name, Transport types, Format
 
 ---
 

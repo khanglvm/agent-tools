@@ -36,19 +36,47 @@ async function main() {
     } else if (args[0].startsWith('http')) {
         // GitHub URL with optional --env:KEY=VALUE and --note:"text" args
         const url = args[0];
-        const preEnv: Record<string, string> = {};
+        const preEnv: Record<string, string | import('./types.js').CliEnvConfig> = {};
         let note: string | undefined;
 
-        // Parse --env:KEY=VALUE and --note:"text" args
+        // Parse --env:KEY=VALUE::modifier and --note:"text" args
         for (let i = 1; i < args.length; i++) {
             const arg = args[i];
             if (arg.startsWith('--env:')) {
                 const envPart = arg.slice(6); // Remove "--env:"
-                const eqIndex = envPart.indexOf('=');
+
+                // Split by :: to get modifiers
+                const segments = envPart.split('::');
+                const keyValuePart = segments[0];
+                const modifiers = segments.slice(1);
+
+                const eqIndex = keyValuePart.indexOf('=');
                 if (eqIndex > 0) {
-                    const key = envPart.slice(0, eqIndex);
-                    const value = envPart.slice(eqIndex + 1);
-                    preEnv[key] = value;
+                    const key = keyValuePart.slice(0, eqIndex);
+                    const value = keyValuePart.slice(eqIndex + 1) || null;
+
+                    // If no modifiers, use simple string value
+                    if (modifiers.length === 0) {
+                        preEnv[key] = value ?? '';
+                    } else {
+                        // Parse modifiers into CliEnvConfig
+                        const config: import('./types.js').CliEnvConfig = { value };
+
+                        for (const mod of modifiers) {
+                            if (mod === 'hidden') {
+                                config.hidden = true;
+                            } else if (mod === 'optional') {
+                                config.required = false;
+                            } else if (mod.startsWith('description=')) {
+                                // Remove quotes if present
+                                config.description = mod.slice(12).replace(/^["']|["']$/g, '');
+                            } else if (mod.startsWith('helpUrl=')) {
+                                config.helpUrl = mod.slice(8).replace(/^["']|["']$/g, '');
+                            }
+                        }
+
+                        preEnv[key] = config;
+                    }
                 }
             } else if (arg.startsWith('--note:')) {
                 note = arg.slice(7); // Remove "--note:"

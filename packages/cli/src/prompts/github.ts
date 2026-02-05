@@ -1,6 +1,6 @@
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
-import type { AgentType } from '../types.js';
+import type { AgentType, CliEnvConfig } from '../types.js';
 import { fetchFromGit, parseGitUrl } from '../git/index.js';
 import { showEnvPrompts } from './env.js';
 import { showToolSelector } from './tools.js';
@@ -15,14 +15,14 @@ const SUPPORTED_PROVIDERS = ['GitHub', 'GitLab', 'Bitbucket', 'Codeberg'];
  * Handle Git URL input and extraction (supports GitHub, GitLab, Bitbucket, Codeberg)
  * @param installedAgents - List of detected agents
  * @param initialUrl - Optional pre-filled URL
- * @param preEnv - Optional pre-configured env values from CLI args
+ * @param preEnv - Optional pre-configured env values from CLI args (simple string or extended config)
  * @param note - Optional note to display for user guidance
  * @returns true if flow completed, false if cancelled
  */
 export async function showGitPrompt(
     installedAgents: AgentType[],
     initialUrl?: string,
-    preEnv?: Record<string, string>,
+    preEnv?: Record<string, string | CliEnvConfig>,
     note?: string
 ): Promise<boolean> {
     let url = initialUrl;
@@ -86,9 +86,21 @@ export async function showGitPrompt(
             for (const serverName of serverNames) {
                 const server = config.servers[serverName];
                 if (server.env) {
-                    for (const [key, value] of Object.entries(preEnv)) {
+                    for (const [key, preValue] of Object.entries(preEnv)) {
                         if (key in server.env) {
-                            server.env[key] = value;
+                            // Handle both simple string and CliEnvConfig
+                            if (typeof preValue === 'string') {
+                                server.env[key] = preValue;
+                            } else {
+                                // CliEnvConfig: merge into EnvVarSchema format
+                                server.env[key] = {
+                                    value: preValue.value,
+                                    description: preValue.description,
+                                    helpUrl: preValue.helpUrl,
+                                    required: preValue.required,
+                                    hidden: preValue.hidden,
+                                };
+                            }
                             preconfiguredKeys.add(key);
                         }
                     }

@@ -17,6 +17,7 @@ export type AgentType =
     | 'github-copilot'
     | 'goose'
     | 'jetbrains-ai'
+    | 'jetbrains-github-copilot'
     | 'opencode'
     | 'roo'
     | 'vscode-copilot'
@@ -63,7 +64,7 @@ export type WrapperKey =
 export interface McpServerConfig {
     command?: string;
     args?: string[];
-    env?: Record<string, string | null>;
+    env?: Record<string, string | null | EnvVarSchema>;
     type?: 'stdio' | 'http' | 'sse';
     url?: string;
     headers?: Record<string, string>;
@@ -93,3 +94,16 @@ export interface ParsedMcpConfig {
  * Config source types
  */
 export type ConfigSource = 'paste' | 'build' | 'github';
+
+/**
+ * Extended env config from CLI arguments
+ * Parsed from --env:KEY=VALUE::modifier format
+ */
+export interface CliEnvConfig {
+    value: string | null;
+    description?: string;
+    helpUrl?: string;
+    required?: boolean;
+    hidden?: boolean;
+}
+

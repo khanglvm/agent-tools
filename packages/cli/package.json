@@ -1,6 +1,6 @@
 {
     "name": "@khanglvm/mcpm",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "description": "MCP Manager - Centralized MCP server configuration for AI agents",
     "type": "module",
     "bin": {

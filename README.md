@@ -6,7 +6,7 @@ Monorepo for AI coding agent utilities.
 
 | Package | NPM | Description |
 |---------|-----|-------------|
-| [mcpm](./packages/cli) | `npx @khanglvm/mcpm` | MCP server manager for 20+ AI agents |
+| [mcpm](./packages/cli) | `npx @khanglvm/mcpm` | MCP server manager |
 
 ## Quick Start
 

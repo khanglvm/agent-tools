@@ -222,6 +222,36 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 | Windsurf | stdio, http, sse | JSON |
 | Zed | stdio | JSON |
 
+## Changelog
+
+**v0.1.7**
+- `feat`: Auto-inject `-y` flag for `npx`/`pnpx` commands during validation to prevent interactive prompts.
+- `test`: Add unit tests for auto-execute flag injection.
+
+**v0.1.6**
+- `feat`: Add extended CLI arguments support (`--env:KEY=VALUE`, `::hidden`, `::optional`) for one-liner installations.
+- `docs`: Comprehensive documentation updates for one-liner install commands.
+
+**v0.1.5**
+- `feat`: Add JetBrains AI Assistant support.
+- `style`: Improve installation output formatting with grouped success messages.
+
+**v0.1.4**
+- `feat`: Add confirmation/edit step before installation.
+- `feat`: Per-agent dynamic filtering for remote vs local transport.
+- `feat`: Improved environment variable preview with smart masking.
+
+**v0.1.3**
+- `fix`: Ensure servers are saved to registry before agent injection.
+- `chore`: Rename package to `@khanglvm/mcpm`.
+
+**v0.1.2**
+- `feat`: UX improvements (main menu loop, multiline paste).
+- `feat`: Smart secret detection for environment variables.
+
+**v0.1.1**
+- `feat`: Initial release of `mcpget` (now `mcpm`).
+
 ## License
 
 MIT

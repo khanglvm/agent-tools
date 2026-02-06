@@ -135,7 +135,7 @@ export async function showEnvPrompts(
         for (const [key, schema] of missingEntries) {
             const isExtended = typeof schema === 'object' && schema !== null && 'value' in schema;
             const description = isExtended ? (schema as EnvVarSchema).description : undefined;
-            const helpUrl = isExtended ? (schema as EnvVarSchema).helpUrl : undefined;
+            const note = isExtended ? (schema as EnvVarSchema).note : undefined;
 
             // Smart detection: check name patterns
             const nameHint = isSecretName(key);
@@ -148,29 +148,23 @@ export async function showEnvPrompts(
                 p.log.info(`  ${description}`);
             }
 
-            // Show help URL with warning
-            if (helpUrl) {
-                p.log.warn(`Link from config (verify before visiting): ${helpUrl}`);
+            // Show per-variable note
+            if (note) {
+                p.log.info(`  Note: ${note}`);
             }
 
             let value: string | symbol;
 
-            // Show hint for preconfigured keys
-            const isPreconfigured = preconfiguredKeys?.has(key);
-            const keyLabel = isPreconfigured
-                ? `${key} ${pc.dim('(preconfigured)')}`
-                : key;
-
             if (isHidden) {
                 value = await p.password({
-                    message: `${keyLabel}:`,
+                    message: `${key}:`,
                     validate(v) {
                         if (!v) return `${key} is required`;
                     },
                 });
             } else {
                 value = await p.text({
-                    message: `${keyLabel}:`,
+                    message: `${key}:`,
                     placeholder: 'Enter value...',
                     validate(v) {
                         if (!v) return `${key} is required`;

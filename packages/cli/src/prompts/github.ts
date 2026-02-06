@@ -104,7 +104,7 @@ export async function showGitPrompt(
                                 server.env[key] = {
                                     value: preValue.value,
                                     description: preValue.description,
-                                    helpUrl: preValue.helpUrl,
+                                    note: preValue.note,
                                     required: preValue.required,
                                     hidden: preValue.hidden,
                                 };
@@ -134,7 +134,7 @@ export async function showGitPrompt(
                             server.headers[key] = {
                                 value: preValue.value,
                                 description: preValue.description,
-                                helpUrl: preValue.helpUrl,
+                                note: preValue.note,
                                 required: preValue.required,
                                 hidden: preValue.hidden,
                             };

@@ -96,6 +96,9 @@ function toRegistryServer(name: string, config: McpServerConfig): RegistryServer
     const transport = getServerTransport(config);
     const createdAt = new Date().toISOString();
 
+    // Import schema extraction
+    const { extractEnvSchema, extractHeaderSchema } = require('../registry/schema.js');
+
     if (transport === 'stdio') {
         return {
             name,
@@ -103,6 +106,9 @@ function toRegistryServer(name: string, config: McpServerConfig): RegistryServer
             command: config.command!,
             args: config.args,
             env: config.env as Record<string, string>,
+            schema: {
+                env: extractEnvSchema(config.env),
+            },
             createdAt,
         };
     } else {
@@ -111,6 +117,9 @@ function toRegistryServer(name: string, config: McpServerConfig): RegistryServer
             transport: transport as 'http' | 'sse',
             url: config.url!,
             headers: config.headers,
+            schema: {
+                headers: extractHeaderSchema(config.headers),
+            },
             createdAt,
         };
     }

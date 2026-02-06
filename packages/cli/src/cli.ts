@@ -174,8 +174,8 @@ async function main() {
                         config.required = false;
                     } else if (mod.startsWith('description=')) {
                         config.description = mod.slice(12).replace(/^["']|["']$/g, '');
-                    } else if (mod.startsWith('helpUrl=')) {
-                        config.helpUrl = mod.slice(8).replace(/^["']|["']$/g, '');
+                    } else if (mod.startsWith('note=')) {
+                        config.note = mod.slice(5).replace(/^["']|["']$/g, '');
                     }
                 }
 

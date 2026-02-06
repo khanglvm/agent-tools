@@ -62,8 +62,10 @@ export async function cmdAdd(): Promise<void> {
 
 /**
  * mcpm remove - Remove a server from registry
+ * @param serverName - Name of server to remove
+ * @param autoConfirm - Skip confirmation prompt (-y flag)
  */
-export async function cmdRemove(serverName?: string): Promise<void> {
+export async function cmdRemove(serverName?: string, autoConfirm = false): Promise<void> {
     const servers = listServers();
 
     if (servers.length === 0) {
@@ -90,15 +92,17 @@ export async function cmdRemove(serverName?: string): Promise<void> {
         nameToRemove = selected;
     }
 
-    // Use color here - this is a destructive action
-    const confirm = await p.confirm({
-        message: pc.red(`Remove "${nameToRemove}" from registry?`),
-        initialValue: false,
-    });
+    // Skip confirmation if -y flag is passed
+    if (!autoConfirm) {
+        const confirm = await p.confirm({
+            message: pc.red(`Remove "${nameToRemove}" from registry?`),
+            initialValue: false,
+        });
 
-    if (isCancel(confirm) || !confirm) {
-        p.log.info('Not removed');
-        return;
+        if (isCancel(confirm) || !confirm) {
+            p.log.info('Not removed');
+            return;
+        }
     }
 
     removeServer(nameToRemove);
@@ -205,9 +209,12 @@ export async function runCommand(command: string, args: string[]): Promise<boole
             return true;
 
         case 'remove':
-        case 'rm':
-            await cmdRemove(args[0]);
+        case 'rm': {
+            const autoConfirm = args.includes('-y') || args.includes('--yes');
+            const serverName = args.find(a => !a.startsWith('-'));
+            await cmdRemove(serverName, autoConfirm);
             return true;
+        }
 
         case 'sync':
             await cmdSync(args.length > 0 ? args : undefined);
@@ -246,7 +253,7 @@ Usage:
 Commands:
   list, ls                List servers in registry
   add                     Add a new server interactively
-  remove, rm [name]       Remove a server from registry
+  remove, rm [name] [-y] Remove a server from registry
   sync [servers...]       Sync registry to agents
   status                  Show sync status and drift
   import                  Import servers from agents

@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 interface CliEnvConfig {
     value: string | null;
     description?: string;
-    helpUrl?: string;
+    note?: string;
     required?: boolean;
     hidden?: boolean;
 }
@@ -44,8 +44,8 @@ function parseCredentialArg(
             config.required = false;
         } else if (mod.startsWith('description=')) {
             config.description = mod.slice(12).replace(/^["']|["']$/g, '');
-        } else if (mod.startsWith('helpUrl=')) {
-            config.helpUrl = mod.slice(8).replace(/^["']|["']$/g, '');
+        } else if (mod.startsWith('note=')) {
+            config.note = mod.slice(5).replace(/^["']|["']$/g, '');
         }
     }
 
@@ -122,17 +122,17 @@ describe('CLI Credential Argument Parsing', () => {
             });
         });
 
-        it('parses ::helpUrl= modifier', () => {
-            const result = parseCredentialArg('--env:KEY=::helpUrl=https://example.com/keys', '--env:');
+        it('parses ::note= modifier', () => {
+            const result = parseCredentialArg('--env:KEY=::note="Get your API key from dashboard"', '--env:');
             expect(result).toEqual({
                 key: 'KEY',
-                config: { value: null, helpUrl: 'https://example.com/keys' },
+                config: { value: null, note: 'Get your API key from dashboard' },
             });
         });
 
         it('parses multiple modifiers combined', () => {
             const result = parseCredentialArg(
-                '--header:Authorization=::hidden::description="Bearer token"::helpUrl=https://api.example.com/auth',
+                '--header:Authorization=::hidden::description="Bearer token"::note="Get token from developer portal"',
                 '--header:'
             );
             expect(result).toEqual({
@@ -141,7 +141,7 @@ describe('CLI Credential Argument Parsing', () => {
                     value: null,
                     hidden: true,
                     description: 'Bearer token',
-                    helpUrl: 'https://api.example.com/auth',
+                    note: 'Get token from developer portal',
                 },
             });
         });

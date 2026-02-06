@@ -173,7 +173,7 @@ async function resolveKeychainRefs(
  * Plain strings remain unchanged.
  */
 function flattenHeaders(
-    headers?: Record<string, string | null | { value: string | null; description?: string; helpUrl?: string; required?: boolean; hidden?: boolean }>
+    headers?: Record<string, string | null | { value: string | null; description?: string; note?: string; required?: boolean; hidden?: boolean }>
 ): Record<string, string> | undefined {
     if (!headers) return undefined;
 

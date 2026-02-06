@@ -80,7 +80,7 @@ export interface McpServerConfig {
 export interface EnvVarSchema {
     value: string | null;
     description?: string;
-    helpUrl?: string;
+    note?: string;
     required?: boolean;
     hidden?: boolean;
 }
@@ -106,7 +106,7 @@ export type ConfigSource = 'paste' | 'build' | 'github';
 export interface CliEnvConfig {
     value: string | null;
     description?: string;
-    helpUrl?: string;
+    note?: string;
     required?: boolean;
     hidden?: boolean;
 }

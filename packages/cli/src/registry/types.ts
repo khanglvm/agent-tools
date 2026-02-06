@@ -38,10 +38,16 @@ export interface RegistryServer {
     url?: string;
 
     /** For http/sse: custom headers (supports extended schema) */
-    headers?: Record<string, string | null | { value: string | null; description?: string; helpUrl?: string; required?: boolean; hidden?: boolean }>;
+    headers?: Record<string, string | null | { value: string | null; description?: string; note?: string; required?: boolean; hidden?: boolean }>;
 
     /** Environment variables (value or keychain reference) */
     env?: Record<string, string>;
+
+    /** Original schema without values - for reconfiguration */
+    schema?: {
+        env?: Record<string, CredentialSchema>;
+        headers?: Record<string, CredentialSchema>;
+    };
 
     /** When this server was added */
     createdAt: string;
@@ -54,6 +60,16 @@ export interface RegistryServer {
 
     /** Agent this was imported from (if any) */
     importedFrom?: string;
+}
+
+/**
+ * Schema for a single credential field (env var or header)
+ */
+export interface CredentialSchema {
+    description?: string;
+    note?: string;
+    required?: boolean;
+    hidden?: boolean;
 }
 
 /**

@@ -93,7 +93,7 @@ npx @khanglvm/mcpm https://github.com/you/my-server
         "API_KEY": {
           "value": null,
           "description": "Your API key from the dashboard",
-          "helpUrl": "https://example.com/api-keys",
+          "note": "Get your API key at https://example.com/api-keys",
           "required": true,
           "hidden": true
         },
@@ -112,7 +112,7 @@ npx @khanglvm/mcpm https://github.com/you/my-server
 |----------|------|-------------|
 | `value` | `string \| null` | Default value, or `null` to prompt user |
 | `description` | `string` | Hint displayed during setup |
-| `helpUrl` | `string` | Link shown (with security warning) |
+| `note` | `string` | Developer note shown during setup (prefixed with "Note:") |
 | `required` | `boolean` | Required field (default: `true`) |
 | `hidden` | `boolean` | Mask input (auto-detected for `key`, `secret`, `token`, `password`) |
 
@@ -127,7 +127,7 @@ npx @khanglvm/mcpm https://github.com/you/my-server
         "Authorization": {
           "value": null,
           "description": "Bearer token from dashboard",
-          "helpUrl": "https://example.com/tokens",
+          "note": "Get your token at https://example.com/tokens",
           "hidden": true
         },
         "x-api-version": "2024-01"
@@ -145,7 +145,7 @@ Extend the `mcp.json` config with CLI arguments — perfect for docs, READMEs, o
 
 ```bash
 npx @khanglvm/mcpm https://github.com/you/my-server \
-  --env:API_KEY=::description="Your API key"::helpUrl="https://example.com/api-keys"::hidden \
+  --env:API_KEY=::description="Your API key"::note="Get from https://example.com/api-keys"::hidden \
   --env:API_URL=https://api.example.com::optional \
   --note:"Get API key at https://example.com/settings"
 ```
@@ -158,7 +158,7 @@ npx @khanglvm/mcpm https://github.com/you/my-server \
 | `--scope:global` / `--scope:project` | Pre-select installation scope (default: global) |
 | `-y` / `--yes` | Automated install (validate, show tools, install to all agents) |
 | `::description="..."` | Show hint during setup |
-| `::helpUrl="..."` | Show link (with security warning) |
+| `::note="..."` | Per-variable developer note (prefixed with "Note:") |
 | `::hidden` | Mask input field |
 | `::optional` | Allow empty value |
 | `--note:"..."` | Display message to user |
@@ -180,7 +180,7 @@ npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotoc
 
 **With helper text:**
 ```bash
-npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":{"value":null,"description":"Personal Access Token","helpUrl":"https://github.com/settings/tokens"}}}}'
+npx @khanglvm/mcpm '{"github":{"command":"npx","args":["-y","@modelcontextprotocol/server-github"],"env":{"GITHUB_TOKEN":{"value":null,"description":"Personal Access Token","note":"Create at https://github.com/settings/tokens"}}}}'
 ```
 
 **Auto-install (no prompts):**
@@ -255,6 +255,11 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 | Zed | stdio | JSON |
 
 ## Changelog
+
+**v1.0.2**
+- `feat`: Schema preservation in registry for credential reconfiguration.
+- `feat`: "Reconfigure" option in sync flow to re-enter credentials from saved schema.
+- `refactor`: Simplified credential prompt messages and note display.
 
 **v1.0.1**
 - `feat`: Direct JSON/YAML/TOML config data input support (paste config as CLI argument).

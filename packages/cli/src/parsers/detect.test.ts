@@ -251,7 +251,7 @@ mcpServers:
                             Authorization: {
                                 value: null,
                                 description: 'API Key',
-                                helpUrl: 'https://example.com/keys'
+                                note: 'Get your API key from dashboard'
                             }
                         }
                     }
@@ -263,7 +263,7 @@ mcpServers:
             expect(result.servers.api.headers?.Authorization).toEqual({
                 value: null,
                 description: 'API Key',
-                helpUrl: 'https://example.com/keys'
+                note: 'Get your API key from dashboard'
             });
         });
     });

@@ -90,9 +90,11 @@ Run mcpm with pre-filled values and auto flags:
 # For repos WITH mcp.json:
 npx @khanglvm/mcpm@latest <repo-url> --env:KEY1=value1 --env:KEY2=value2 -a -y
 
-# For repos WITHOUT mcp.json (inline config):
+# For repos WITHOUT mcp.json (inline config) - EXAMPLE ONLY:
 npx @khanglvm/mcpm@latest '{"server":{"command":"npx","args":["-y","package"],"env":{"KEY":"value"}}}' -a -y
 ```
+
+> ⚠️ **CRITICAL**: The inline config example above is just a **placeholder format**. You MUST read and follow [SKILL.md](./.agent/skills/mcpm/SKILL.md) to learn how to extract the actual package name, command, args, and env vars from the MCP server's README file. Do NOT copy the example literally.
 
 **Flags:**
 - `-a` = Auto-select all compatible agents

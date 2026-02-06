@@ -160,13 +160,21 @@ npx @khanglvm/mcpm https://github.com/author/remote-server \
 
 Most MCP servers on GitHub/GitLab don't have an `mcp.json` file. When this happens, **extract the configuration from the README** and construct the install command manually.
 
+> ⚠️ **CRITICAL DECISION**
+>
+> | Repo has `mcp.json`? | Command Format |
+> |---------------------|----------------|
+> | ✅ YES | `npx @khanglvm/mcpm https://github.com/... --env:KEY=value -a -y` |
+> | ❌ NO | `npx @khanglvm/mcpm '{"name":{...}}' -a -y` ← **MUST use inline JSON** |
+>
+> If the repo does NOT have `mcp.json`, **you CANNOT use the GitHub URL** — mcpm will fail because it doesn't know the package name, command, or args. You MUST construct the full config as inline JSON.
+
 ### Step-by-Step Workflow
 
-1. **Check for mcp.json first** — If the repo has `mcp.json`, use it directly
-2. **Read the README** — Look for configuration examples in the documentation
-3. **Identify the transport type** — stdio (command/args) or HTTP/SSE (url/headers)
-4. **Extract required credentials** — Find environment variables or headers needed
-5. **Construct the install command** — Use `--env:` or `--header:` modifiers
+1. **Check for mcp.json first** — If the repo has `mcp.json`, you can use GitHub URL + `--env:` flags
+2. **If NO mcp.json** — Read the README to extract the full config (package name, command, args, env vars)
+3. **Construct inline JSON** — Build the complete JSON config with all values filled in
+4. **Run with inline config** — Pass the JSON string directly to mcpm
 
 ### Common README Patterns to Look For
 

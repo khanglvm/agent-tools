@@ -1,6 +1,6 @@
 ---
 name: mcpm
-description: Use mcpm (MCP Manager) CLI to manage MCP server configurations across AI coding agents. Triggers when user wants to install, sync, import, or manage MCP servers for Claude Code, Cursor, Windsurf, Antigravity, or other AI agents. Also triggers when helping MCP developers create mcp.json or shareable install commands. Keywords include MCP, server, install, sync, registry, import, agent configuration, mcp.json.
+description: Use mcpm (MCP Manager) CLI to manage MCP server configurations across AI coding agents. Triggers when user wants to install, sync, import, or manage MCP servers for Claude Code, Cursor, Windsurf, Antigravity, or other AI agents. Also triggers when helping MCP developers create mcp.json or shareable install commands, or when extracting MCP config from README files. Keywords include MCP, server, install, sync, registry, import, agent configuration, mcp.json, README extraction.
 ---
 
 # mcpm - MCP Manager
@@ -153,6 +153,139 @@ npx @khanglvm/mcpm https://github.com/author/remote-server \
 > **Auto mode (`-y`)**: When `-y` is used, mcpm will automatically validate the MCP server and install to all compatible agents without prompts. If any required credentials are missing (no value from `mcp.json` or CLI args), it falls back to normal interactive flow. This is success-or-fail with no retries.
 
 > All modifiers are optional. `--env` applies to stdio servers, `--header` applies to HTTP/SSE servers. `--agent` can be repeated for multiple agents (e.g., `--agent:cursor --agent:claude-code`).
+
+---
+
+## Extracting Config from README (No mcp.json)
+
+Most MCP servers on GitHub/GitLab don't have an `mcp.json` file. When this happens, **extract the configuration from the README** and construct the install command manually.
+
+### Step-by-Step Workflow
+
+1. **Check for mcp.json first** — If the repo has `mcp.json`, use it directly
+2. **Read the README** — Look for configuration examples in the documentation
+3. **Identify the transport type** — stdio (command/args) or HTTP/SSE (url/headers)
+4. **Extract required credentials** — Find environment variables or headers needed
+5. **Construct the install command** — Use `--env:` or `--header:` modifiers
+
+### Common README Patterns to Look For
+
+#### Pattern 1: Claude Desktop Config Example
+Most READMEs show a Claude Desktop configuration block:
+```json
+{
+  "mcpServers": {
+    "server-name": {
+      "command": "npx",
+      "args": ["-y", "@scope/package-name"],
+      "env": {
+        "API_KEY": "your-api-key",
+        "BASE_URL": "https://api.example.com"
+      }
+    }
+  }
+}
+```
+
+**Extract and convert to:**
+```bash
+npx @khanglvm/mcpm https://github.com/author/server \
+  --env:API_KEY=::description="Your API key"::hidden \
+  --env:BASE_URL=https://api.example.com
+```
+
+#### Pattern 2: Environment Variables Section
+READMEs often list required environment variables in a table or list:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `API_KEY` | Your API key from dashboard | Yes |
+| `API_URL` | Custom API endpoint | No |
+
+**Extract and convert to:**
+```bash
+npx @khanglvm/mcpm https://github.com/author/server \
+  --env:API_KEY=::description="Your API key from dashboard"::hidden \
+  --env:API_URL=::optional
+```
+
+#### Pattern 3: npx/uvx Command
+Some READMEs show the direct execution command:
+```bash
+npx -y @scope/mcp-server
+# or
+uvx mcp-server-name
+```
+
+**Extract and use as the base command** — the mcpm CLI will detect this from the repo.
+
+#### Pattern 4: Docker/Remote URL
+For HTTP/SSE servers, look for URLs:
+```
+MCP endpoint: https://mcp.example.com/sse
+Required headers: Authorization: Bearer <token>
+```
+
+**Extract and convert to:**
+```bash
+npx @khanglvm/mcpm https://github.com/author/server \
+  --header:Authorization=::description="Bearer token"::hidden
+```
+
+### Extraction Checklist
+
+When reading a README, collect:
+
+- [ ] **Server name** — Usually the repo name or package name
+- [ ] **Transport type** — `command`/`args` (stdio) or `url` (HTTP/SSE)
+- [ ] **Package identifier** — npm package (`@scope/name`) or Python package (for uvx)
+- [ ] **Required env vars** — Mark as `::hidden` if they contain secrets
+- [ ] **Optional env vars** — Mark as `::optional`
+- [ ] **Headers** — For HTTP/SSE transport
+- [ ] **Help URLs** — Links to get API keys or documentation
+
+### Example: Full Extraction
+
+Given this README section:
+```markdown
+## Configuration
+
+Add to your Claude Desktop config:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "@khanglvm/jira-mcp"],
+      "env": {
+        "JIRA_BASE_URL": "https://your-jira.atlassian.net",
+        "JIRA_USERNAME": "your-email@example.com",
+        "JIRA_PASSWORD": "your-api-token"
+      }
+    }
+  }
+}
+\`\`\`
+
+Get your API token from: https://id.atlassian.com/manage-profile/security/api-tokens
+```
+
+**Construct this install command:**
+```bash
+npx @khanglvm/mcpm https://github.com/khanglvm/jira-mcp \
+  --env:JIRA_BASE_URL=::description="Jira server URL (e.g., https://company.atlassian.net)" \
+  --env:JIRA_USERNAME=::description="Jira username or email" \
+  --env:JIRA_PASSWORD=::description="API token"::helpUrl="https://id.atlassian.com/manage-profile/security/api-tokens"::hidden
+```
+
+### Tips for AI Agents
+
+1. **Auto-detect secrets** — Variables with `key`, `token`, `password`, `secret`, `auth` in the name should be `::hidden`
+2. **Preserve defaults** — If README shows a default value, include it in the command
+3. **Add helpful descriptions** — Use the README's descriptions to populate `::description`
+4. **Link to help docs** — If README mentions where to get credentials, use `::helpUrl`
+5. **Check package.json** — The `bin` field shows the actual command to run
 
 ---
 

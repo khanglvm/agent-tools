@@ -27,12 +27,14 @@ yarn run dev
 
 ## For AI Agents 🤖
 
-If you are an AI assistant helping with this project, please note:
+To help users with **mcpm**, read these files in order:
 
-- **Skills**: Check `.agent/skills/` for specialized capabilities and instructions.
-- **Workflows**: Check `.agent/workflows/` for project-specific procedures.
+| File | Purpose |
+|------|---------|
+| [`.agent/skills/mcpm/SKILL.md`](./.agent/skills/mcpm/SKILL.md) | How to use mcpm CLI, extract config from READMEs when `mcp.json` is missing |
+| [`packages/cli/README.md`](./packages/cli/README.md) | Complete CLI reference, supported agents, and configuration formats |
 
-Always check these directories to understand project-specific conventions and available tools.
+No need to read the codebase — these two files contain all the knowledge needed to assist users.
 
 ## License
 

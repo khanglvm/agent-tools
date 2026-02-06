@@ -27,16 +27,18 @@ yarn run dev
 
 ## For AI Agents 🤖
 
-To help users install MCP servers, read these files first:
+> ⚠️ **IMPORTANT**: Before helping users install MCP servers, you MUST read the skill file first. It contains the patterns and examples for extracting MCP configuration from README files.
 
-| File | Purpose |
-|------|---------|
-| [`.agent/skills/mcpm/SKILL.md`](./.agent/skills/mcpm/SKILL.md) | How to use mcpm CLI, extract config from READMEs when `mcp.json` is missing |
-| [`packages/cli/README.md`](./packages/cli/README.md) | Complete CLI reference, supported agents, and configuration formats |
+**Required Reading (in order):**
+
+| Step | File | What You'll Learn |
+|------|------|-------------------|
+| 1️⃣ | [`.agent/skills/mcpm/SKILL.md`](./.agent/skills/mcpm/SKILL.md) | **README patterns** for extracting config, inline JSON mode, when to use each command format |
+| 2️⃣ | [`packages/cli/README.md`](./packages/cli/README.md) | CLI reference, supported agents, all configuration options |
 
 ### Automatic Installation Workflow
 
-When a user wants to install MCP server(s), follow this flow:
+After reading the skill file, follow this flow:
 
 **Step 1: Get MCP Server Source**
 Ask user to provide one of:

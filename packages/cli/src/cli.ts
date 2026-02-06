@@ -92,8 +92,40 @@ async function main() {
         await runBuildMode();
     } else if (isDirectConfig(args[0])) {
         // Direct JSON/YAML/TOML config data passed as argument
+        // Parse remaining args for -a, -y, --scope: flags
+        let autoMode = false;
+        let autoSelectAll = false;
+        let scope: import('./types.js').InstallScope = 'global';
+        const preAgents: import('./types.js').AgentType[] = [];
+
+        for (let i = 1; i < args.length; i++) {
+            const arg = args[i];
+            if (arg === '-y' || arg === '--yes') {
+                autoMode = true;
+            } else if (arg === '-a') {
+                autoSelectAll = true;
+            } else if (arg.startsWith('--scope:')) {
+                const scopeValue = arg.slice('--scope:'.length);
+                if (scopeValue === 'global' || scopeValue === 'project') {
+                    scope = scopeValue;
+                }
+            } else if (arg.startsWith('--agent:')) {
+                const agentName = arg.slice('--agent:'.length);
+                if (agentName !== 'all' && agentName in agents) {
+                    preAgents.push(agentName as import('./types.js').AgentType);
+                }
+            }
+        }
+
+        const autoOptions: import('./types.js').AutoOptions = {
+            enabled: autoMode,
+            scope,
+            preAgents: preAgents.length > 0 ? preAgents : undefined,
+            autoSelectAll,
+        };
+
         const { showDirectConfigPrompt } = await import('./prompts/direct.js');
-        await showDirectConfigPrompt(installedAgents, args[0]);
+        await showDirectConfigPrompt(installedAgents, args[0], autoOptions);
     } else if (args[0].startsWith('http') && isRawConfigUrl(args[0])) {
         // URL pointing directly to a config file (raw GitHub, etc.)
         const { showRawConfigPrompt } = await import('./prompts/raw-url.js');

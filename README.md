@@ -24,6 +24,16 @@ cd packages/cli && yarn build
 yarn run dev
 ```
 
+
+## For AI Agents 🤖
+
+If you are an AI assistant helping with this project, please note:
+
+- **Skills**: Check `.agent/skills/` for specialized capabilities and instructions.
+- **Workflows**: Check `.agent/workflows/` for project-specific procedures.
+
+Always check these directories to understand project-specific conventions and available tools.
+
 ## License
 
 MIT

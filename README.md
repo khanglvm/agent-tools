@@ -45,9 +45,36 @@ Ask user to provide one of:
 - Direct config JSON/YAML
 
 **Step 2: Gather Configuration**
-- If repo has `mcp.json` → use GitHub URL mode
-- If repo has NO `mcp.json` → extract config from README, use inline JSON mode (see SKILL.md "CRITICAL DECISION" section)
-- Identify all required env vars/headers
+
+For each MCP server, you must determine the full configuration. Follow this process:
+
+1. **Check for `mcp.json`** in the repo root (e.g., `https://raw.githubusercontent.com/owner/repo/main/mcp.json`)
+   - If exists → You can use GitHub URL mode with `--env:` flags
+   - If NOT exists → Continue to step 2
+
+2. **Read the README** to extract configuration:
+   - Look for JSON/YAML config blocks showing `mcpServers`, `command`, `args`, `env`
+   - Find the npm package name (e.g., `@scope/package-name` or `package-name`)
+   - Identify all required environment variables and their purposes
+   - Note any help URLs for obtaining credentials
+
+3. **Construct the configuration**:
+   ```json
+   {
+     "server-name": {
+       "command": "npx",
+       "args": ["-y", "package-name@latest"],
+       "env": {
+         "API_KEY": "<user-provided>",
+         "API_URL": "<default-or-user-provided>"
+       }
+     }
+   }
+   ```
+
+4. **Determine command format**:
+   - Has `mcp.json` → `npx @khanglvm/mcpm@latest <github-url> --env:KEY=value -a -y`
+   - No `mcp.json` → `npx @khanglvm/mcpm@latest '<inline-json>' -a -y`
 
 **Step 3: Collect Credentials**
 - List all required credentials to the user

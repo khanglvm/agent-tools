@@ -101,6 +101,36 @@ npx @khanglvm/mcpm@latest '{"server":{"command":"npx","args":["-y","package"],"e
 
 > **Important**: All env values must be pre-filled for `-y` mode to work. If any required value is missing, mcpm falls back to interactive mode.
 
+**Step 5: Handle Installation Failures**
+
+If mcpm fails to install or validate the MCP server:
+
+1. **Show the full configuration to user for review**:
+   ```
+   Here's the MCP configuration I constructed:
+   
+   Server: <server-name>
+   Command: <command>
+   Args: <args>
+   Environment Variables:
+     - KEY1: <value1>
+     - KEY2: <value2>
+   
+   Please review and let me know if anything looks incorrect.
+   ```
+
+2. **Identify the issue** from the error message:
+   - `command not found` → Wrong package name or command
+   - `Connection closed` → Server failed to start (check credentials/URL)
+   - `Missing value` → Env var not properly passed
+   - `mcp.json not found` → Need to use inline config mode instead
+
+3. **Ask user for corrections** and rebuild the configuration
+
+4. **Retry installation** with the corrected config
+
+> Keep iterating with the user until installation succeeds. Don't give up on first failure.
+
 ## License
 
 MIT

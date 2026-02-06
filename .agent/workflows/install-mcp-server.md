@@ -64,7 +64,68 @@ For each MCP server, you must determine the full configuration. Follow this proc
 
 ---
 
-## Command Reference
+## Transport Types
+
+MCP servers communicate via two transport types. **You must identify which type the server uses** from the README or config.
+
+### 1. Stdio Transport (Local execution)
+
+Uses `command`, `args`, and `env`. The server runs locally as a subprocess.
+
+```json
+{
+  "server-name": {
+    "command": "npx",
+    "args": ["-y", "package-name@latest"],
+    "env": {
+      "API_KEY": "<value>",
+      "API_URL": "<value>"
+    }
+  }
+}
+```
+
+**Indicators in README:**
+- Shows `command`, `args`, `env` in config
+- Uses `npx`, `uvx`, `node`, `python`, `docker` commands
+- Runs locally on user's machine
+
+**mcpm CLI flags:** Use `--env:KEY=value` to pre-fill environment variables.
+
+### 2. HTTP/SSE Transport (Remote server)
+
+Uses `url` and `headers`. The server is hosted remotely.
+
+```json
+{
+  "server-name": {
+    "url": "https://mcp.example.com/sse",
+    "headers": {
+      "Authorization": "Bearer <token>",
+      "x-api-key": "<api-key>"
+    }
+  }
+}
+```
+
+**Indicators in README:**
+- Shows `url` field (usually ends with `/sse` or `/mcp`)
+- Shows `headers` instead of `env`
+- No `command` or `args` fields
+- Server is hosted (SaaS, cloud service)
+
+**mcpm CLI flags:** Use `--header:KEY=value` to pre-fill headers.
+
+### Quick Decision Table
+
+| README shows... | Transport | Config structure | CLI flags |
+|-----------------|-----------|------------------|-----------|
+| `command`, `args`, `env` | **stdio** | `{cmd, args, env}` | `--env:KEY=value` |
+| `url`, `headers` | **HTTP/SSE** | `{url, headers}` | `--header:KEY=value` |
+
+---
+
+## Command Reference (Stdio Transport)
 
 MCP servers use different runtime commands. Here are the most common:
 
@@ -175,17 +236,23 @@ MCP servers use different runtime commands. Here are the most common:
 Run mcpm with pre-filled values and auto flags:
 
 ```bash
-# For repos WITH mcp.json:
+# Stdio transport - repos WITH mcp.json:
 npx @khanglvm/mcpm@latest <repo-url> --env:KEY1=value1 --env:KEY2=value2 -a -y
 
-# For direct config file URL:
+# Stdio transport - direct config file URL:
 npx @khanglvm/mcpm@latest https://raw.githubusercontent.com/.../mcp.json -a -y
 
-# For repos WITHOUT mcp.json (inline config) - EXAMPLE ONLY:
+# Stdio transport - inline config (EXAMPLE ONLY):
 npx @khanglvm/mcpm@latest '{"server":{"command":"npx","args":["-y","package"],"env":{"KEY":"value"}}}' -a -y
 
-# For Python MCP servers (uvx example):
+# Stdio transport - Python MCP servers (uvx):
 npx @khanglvm/mcpm@latest '{"mcp-server":{"command":"uvx","args":["mcp-server-package"],"env":{"API_KEY":"value"}}}' -a -y
+
+# HTTP/SSE transport - remote server with headers:
+npx @khanglvm/mcpm@latest '{"remote-api":{"url":"https://mcp.example.com/sse","headers":{"Authorization":"Bearer token123"}}}' -a -y
+
+# HTTP/SSE transport - using --header: flags with mcp.json:
+npx @khanglvm/mcpm@latest <repo-url> --header:Authorization="Bearer token123" -a -y
 ```
 
 > ⚠️ **CRITICAL**: The inline config examples above are **placeholder formats**. You MUST read and follow [SKILL.md](https://github.com/khanglvm/agent-tools/blob/main/.agent/skills/mcpm/SKILL.md) to learn how to extract the actual package name, command, args, and env vars from the MCP server's README file. Do NOT copy examples literally.

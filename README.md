@@ -33,8 +33,8 @@ yarn run dev
 
 | Step | File | What You'll Learn |
 |------|------|-------------------|
-| 1️⃣ | [`.agent/skills/mcpm/SKILL.md`](./.agent/skills/mcpm/SKILL.md) | **README patterns** for extracting config, inline JSON mode, when to use each command format |
-| 2️⃣ | [`packages/cli/README.md`](./packages/cli/README.md) | CLI reference, supported agents, all configuration options |
+| 1️⃣ | [`.agent/skills/mcpm/SKILL.md`](https://github.com/khanglvm/agent-tools/blob/main/.agent/skills/mcpm/SKILL.md) | **README patterns** for extracting config, inline JSON mode, when to use each command format |
+| 2️⃣ | [`packages/cli/README.md`](https://github.com/khanglvm/agent-tools/blob/main/packages/cli/README.md) | CLI reference, supported agents, all configuration options |
 
 ### Automatic Installation Workflow
 
@@ -94,7 +94,7 @@ npx @khanglvm/mcpm@latest <repo-url> --env:KEY1=value1 --env:KEY2=value2 -a -y
 npx @khanglvm/mcpm@latest '{"server":{"command":"npx","args":["-y","package"],"env":{"KEY":"value"}}}' -a -y
 ```
 
-> ⚠️ **CRITICAL**: The inline config example above is just a **placeholder format**. You MUST read and follow [SKILL.md](./.agent/skills/mcpm/SKILL.md) to learn how to extract the actual package name, command, args, and env vars from the MCP server's README file. Do NOT copy the example literally.
+> ⚠️ **CRITICAL**: The inline config example above is just a **placeholder format**. You MUST read and follow [SKILL.md](https://github.com/khanglvm/agent-tools/blob/main/.agent/skills/mcpm/SKILL.md) to learn how to extract the actual package name, command, args, and env vars from the MCP server's README file. Do NOT copy the example literally.
 
 **Flags:**
 - `-a` = Auto-select all compatible agents

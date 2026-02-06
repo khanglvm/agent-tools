@@ -287,6 +287,47 @@ npx @khanglvm/mcpm https://github.com/khanglvm/jira-mcp \
 4. **Link to help docs** — If README mentions where to get credentials, use `::helpUrl`
 5. **Check package.json** — The `bin` field shows the actual command to run
 
+### Using Inline Config (When Repo Has No mcp.json)
+
+**CRITICAL**: If a repository does NOT have `mcp.json`, you CANNOT just pass the GitHub URL — mcpm won't know the config. Instead, **construct the config from the README and pass it as inline JSON**.
+
+#### Step 1: Extract config from README
+Find the MCP config block in the README (see patterns above).
+
+#### Step 2: Convert to inline JSON command
+Pass the complete JSON config directly to mcpm:
+
+```bash
+# Instead of this (FAILS without mcp.json):
+npx @khanglvm/mcpm https://github.com/author/server --env:API_KEY=xxx
+
+# Do this (WORKS - inline config):
+npx @khanglvm/mcpm '{"server-name":{"command":"npx","args":["-y","package-name"],"env":{"API_KEY":"xxx","API_URL":"https://api.example.com"}}}' -a -y
+```
+
+#### Full Example: Outline MCP Server (no mcp.json)
+
+From README, the config is:
+```json
+{
+  "outline": {
+    "command": "npx",
+    "args": ["-y", "outline-mcp-server-stdio@latest"],
+    "env": {
+      "OUTLINE_API_KEY": "<key>",
+      "OUTLINE_API_URL": "https://app.getoutline.com/api"
+    }
+  }
+}
+```
+
+Convert to inline command:
+```bash
+npx @khanglvm/mcpm '{"outline":{"command":"npx","args":["-y","outline-mcp-server-stdio@latest"],"env":{"OUTLINE_API_KEY":"user-provided-key","OUTLINE_API_URL":"https://handbook.example.com/api"}}}' -a -y
+```
+
+> **Key insight**: The inline JSON replaces the need for mcp.json. All env values must be pre-filled with actual values for `-y` (auto mode) to work.
+
 ---
 
 ## Reference

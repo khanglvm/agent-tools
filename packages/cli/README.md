@@ -256,6 +256,10 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 
 ## Changelog
 
+**v1.1.0**
+- `feat`: Support `--agent:all` and `-a` flags for automated installation to all compatible agents.
+- `feat`: Intelligent agent filtering based on transport (stdio/http/sse) and installation scope.
+
 **v1.0.2**
 - `feat`: Schema preservation in registry for credential reconfiguration.
 - `feat`: "Reconfigure" option in sync flow to re-enter credentials from saved schema.

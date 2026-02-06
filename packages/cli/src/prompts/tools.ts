@@ -9,6 +9,7 @@ import { showSecurityWarning } from './security.js';
 import { injectConfig, injectLocalConfig } from '../core/injector.js';
 import { addServer } from '../registry/store.js';
 import type { RegistryServer } from '../registry/types.js';
+import { extractEnvSchema, extractHeaderSchema } from '../registry/schema.js';
 import { multiselectWithAll } from './shared.js';
 
 /**
@@ -16,11 +17,13 @@ import { multiselectWithAll } from './shared.js';
  * @param installedAgents - List of detected installed agents
  * @param config - Parsed MCP configuration
  * @param preAgents - Optional pre-selected agents from CLI args (will be filtered by scope/transport)
+ * @param autoSelectAll - If true, pre-select all compatible agents
  */
 export async function showToolSelector(
     installedAgents: AgentType[],
     config: ParsedMcpConfig,
-    preAgents?: AgentType[]
+    preAgents?: AgentType[],
+    autoSelectAll?: boolean
 ) {
     // Step 1: Scope selection
     const scope = await p.select({
@@ -68,6 +71,11 @@ export async function showToolSelector(
         }
     }
 
+    // Step 3b: If autoSelectAll is true, pre-select all available agents
+    if (autoSelectAll && (!preSelectedAgents || preSelectedAgents.length === 0)) {
+        preSelectedAgents = [...availableAgents];
+    }
+
     // Show warning if no agents support local config
     if (scope === 'project' && availableAgents.length === 0) {
         p.log.warn('No installed agents support project-scope config.');
@@ -113,7 +121,7 @@ export async function showToolSelector(
     }
 
     const selectedItems = await p.multiselect({
-        message: 'Select targets: (space: toggle, a: all, i: invert)',
+        message: `Select targets: (press 'space' to toggle, 'a' to select all)`,
         options: allItems,
         initialValues,
         required: true,
@@ -270,9 +278,6 @@ async function backupConfig(agentType: AgentType): Promise<string | null> {
 function toRegistryServer(name: string, config: McpServerConfig): RegistryServer {
     const transport = config.type || 'stdio';
     const createdAt = new Date().toISOString();
-
-    // Import schema extraction
-    const { extractEnvSchema, extractHeaderSchema } = require('../registry/schema.js');
 
     if (transport === 'stdio') {
         return {

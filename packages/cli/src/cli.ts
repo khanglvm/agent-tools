@@ -106,6 +106,7 @@ async function main() {
         const preAgents: import('./types.js').AgentType[] = [];
         let note: string | undefined;
         let autoMode = false;
+        let autoSelectAll = false;
         let scope: import('./types.js').InstallScope = 'global';
 
         // Parse --env:KEY=VALUE::modifier, --header:KEY=VALUE::modifier, --agent:<name>, --scope:, -y, and --note:"text" args
@@ -129,9 +130,20 @@ async function main() {
                 continue;
             }
 
-            // Parse --agent:<agent-name>
+            // Parse -a (short alias for --agent:all)
+            if (arg === '-a') {
+                autoSelectAll = true;
+                continue;
+            }
+
+            // Parse --agent:<agent-name> or --agent:all
             if (arg.startsWith('--agent:')) {
                 const agentName = arg.slice('--agent:'.length);
+                // Handle --agent:all
+                if (agentName === 'all') {
+                    autoSelectAll = true;
+                    continue;
+                }
                 // Dynamic import to avoid circular dependency
                 const { isValidAgentType } = await import('./agents.js');
                 if (isValidAgentType(agentName)) {
@@ -206,6 +218,7 @@ async function main() {
             enabled: autoMode,
             scope,
             preAgents: preAgents.length > 0 ? preAgents : undefined,
+            autoSelectAll,
         };
 
         const completed = await showGitPrompt(installedAgents, url, preEnv, note, preHeaders, preAgents, autoOptions);

@@ -293,3 +293,65 @@ describe('CLI -y and --scope: Argument Parsing', () => {
     });
 });
 
+describe('CLI --agent:all and -a Argument Parsing', () => {
+    /**
+     * Helper to parse --agent:all and -a flags from CLI arguments
+     */
+    function parseAgentAllFlags(args: string[]): { autoSelectAll: boolean; specificAgents: string[] } {
+        let autoSelectAll = false;
+        const specificAgents: string[] = [];
+
+        for (const arg of args) {
+            if (arg === '-a') {
+                autoSelectAll = true;
+            } else if (arg.startsWith('--agent:')) {
+                const agentName = arg.slice('--agent:'.length);
+                if (agentName === 'all') {
+                    autoSelectAll = true;
+                } else if (isValidAgentType(agentName) && !specificAgents.includes(agentName)) {
+                    specificAgents.push(agentName);
+                }
+            }
+        }
+
+        return { autoSelectAll, specificAgents };
+    }
+
+    it('parses --agent:all flag', () => {
+        const result = parseAgentAllFlags(['--agent:all']);
+        expect(result).toEqual({ autoSelectAll: true, specificAgents: [] });
+    });
+
+    it('parses -a short flag', () => {
+        const result = parseAgentAllFlags(['-a']);
+        expect(result).toEqual({ autoSelectAll: true, specificAgents: [] });
+    });
+
+    it('combines -a with specific agents', () => {
+        const result = parseAgentAllFlags(['-a', '--agent:cursor', '--agent:claude-code']);
+        // When -a is used, specificAgents are still collected but autoSelectAll takes precedence
+        expect(result).toEqual({ autoSelectAll: true, specificAgents: ['cursor', 'claude-code'] });
+    });
+
+    it('combines --agent:all with -y flag', () => {
+        // Note: This test focuses on the agent:all parsing, -y is handled separately
+        const result = parseAgentAllFlags(['--agent:all', '-y']);
+        expect(result).toEqual({ autoSelectAll: true, specificAgents: [] });
+    });
+
+    it('handles mixed args correctly', () => {
+        const result = parseAgentAllFlags([
+            '--env:API_KEY=test',
+            '-a',
+            '--header:Auth=token',
+            '--scope:project',
+        ]);
+        expect(result).toEqual({ autoSelectAll: true, specificAgents: [] });
+    });
+
+    it('returns false when no -a or --agent:all', () => {
+        const result = parseAgentAllFlags(['--agent:cursor', '--agent:windsurf']);
+        expect(result).toEqual({ autoSelectAll: false, specificAgents: ['cursor', 'windsurf'] });
+    });
+});
+

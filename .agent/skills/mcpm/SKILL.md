@@ -141,6 +141,7 @@ npx @khanglvm/mcpm https://github.com/author/remote-server \
 | `--env:KEY=VALUE` | Pre-fill env var (stdio transport) |
 | `--header:KEY=VALUE` | Pre-fill header (HTTP/SSE transport) |
 | `--agent:<name>` | Pre-select agent(s) for installation |
+| `-a` / `--agent:all` | Auto-select all compatible agents |
 | `--scope:global` / `--scope:project` | Pre-select installation scope (default: global) |
 | `-y` / `--yes` | Automated install: validate, show tools, install to all agents |
 | `::description="..."` | Show hint during setup |

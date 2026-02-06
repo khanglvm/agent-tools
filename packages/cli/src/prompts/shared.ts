@@ -40,7 +40,7 @@ export async function multiselectWithAll(opts: {
     }
 
     // Show hint about keyboard shortcuts (available in @clack/core 1.0.0+)
-    const messageWithHint = `${message} (space: toggle, a: all, i: invert)`;
+    const messageWithHint = `${message} (press 'space' to toggle, 'a' to select all)`;
 
     const selected = await p.multiselect({
         message: messageWithHint,

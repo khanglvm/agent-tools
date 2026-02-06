@@ -153,7 +153,8 @@ export async function showGitPrompt(
                     config,
                     installedAgents,
                     autoOptions.scope,
-                    autoOptions.preAgents
+                    autoOptions.preAgents,
+                    autoOptions.autoSelectAll
                 );
             }
             // Conditions not met, fall through to normal flow
@@ -197,7 +198,7 @@ export async function showGitPrompt(
         }
 
         // Select agents and install (agent selector handles the final confirmation)
-        await showToolSelector(installedAgents, configWithEnv, preAgents);
+        await showToolSelector(installedAgents, configWithEnv, preAgents, autoOptions?.autoSelectAll);
         return true;
 
     } catch (err) {

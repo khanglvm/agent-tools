@@ -11,6 +11,7 @@ import { validateAllServers } from '../core/validator.js';
 import { injectConfig, injectLocalConfig } from '../core/injector.js';
 import { addServer } from '../registry/store.js';
 import type { RegistryServer } from '../registry/types.js';
+import { extractEnvSchema, extractHeaderSchema } from '../registry/schema.js';
 import { plural } from './shared.js';
 
 /**
@@ -96,9 +97,6 @@ function toRegistryServer(name: string, config: McpServerConfig): RegistryServer
     const transport = getServerTransport(config);
     const createdAt = new Date().toISOString();
 
-    // Import schema extraction
-    const { extractEnvSchema, extractHeaderSchema } = require('../registry/schema.js');
-
     if (transport === 'stdio') {
         return {
             name,
@@ -133,8 +131,14 @@ export async function runAutoInstall(
     config: ParsedMcpConfig,
     installedAgents: AgentType[],
     scope: InstallScope,
-    preAgents?: AgentType[]
+    preAgents?: AgentType[],
+    autoSelectAll?: boolean
 ): Promise<boolean> {
+    // If autoSelectAll is true and no specific agents were pre-selected, use all installed agents
+    if (autoSelectAll && (!preAgents || preAgents.length === 0)) {
+        preAgents = [...installedAgents];
+    }
+
     const serverNames = Object.keys(config.servers);
 
     p.log.info(pc.cyan('🚀 Auto mode (-y): Automated installation'));

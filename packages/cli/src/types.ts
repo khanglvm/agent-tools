@@ -118,5 +118,7 @@ export interface AutoOptions {
     enabled: boolean;
     scope: InstallScope;
     preAgents?: AgentType[];
+    /** If true, auto-select all compatible agents based on transport and scope */
+    autoSelectAll?: boolean;
 }
 

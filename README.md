@@ -56,7 +56,10 @@ For each MCP server, you must determine the full configuration. Follow this proc
 
 2. **Read the README** to extract configuration:
    - Look for JSON/YAML config blocks showing `mcpServers`, `command`, `args`, `env`
-   - Find the npm package name (e.g., `@scope/package-name` or `package-name`)
+   - **Identify the NPM package name** (crucial!):
+     - Do NOT confuse the *binary name* (e.g., `server-stdio`) with the *package name* (e.g., `mcp-server-package`)
+     - Check `package.json` > `name` field if unsure
+     - Common error: `npm error 404` means you used the wrong package name in `args`
    - Identify all required environment variables and their purposes
    - Note any help URLs for obtaining credentials
 

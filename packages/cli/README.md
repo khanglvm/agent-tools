@@ -256,6 +256,10 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 
 ## Changelog
 
+**v1.1.1**
+- `fix`: Support auto install flags (`-a`, `-y`) in inline config mode.
+- `docs`: Add specific instruction to verify package name in README.
+
 **v1.1.0**
 - `feat`: Support `--agent:all` and `-a` flags for automated installation to all compatible agents.
 - `feat`: Intelligent agent filtering based on transport (stdio/http/sse) and installation scope.

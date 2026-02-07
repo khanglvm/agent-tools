@@ -256,6 +256,9 @@ All servers are stored in `~/.mcpm/registry.json` and can be synced to any agent
 
 ## Changelog
 
+**v1.1.2**
+- `fix`: Sanitize server names containing spaces or special characters to valid identifiers (e.g., "Framelink MCP for Figma" → "Framelink_MCP_for_Figma").
+
 **v1.1.1**
 - `fix`: Support auto install flags (`-a`, `-y`) in inline config mode.
 - `docs`: Add specific instruction to verify package name in README.

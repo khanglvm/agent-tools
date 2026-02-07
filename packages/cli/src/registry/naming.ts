@@ -27,15 +27,37 @@ export function usesCamelCase(agent: AgentType): boolean {
 }
 
 /**
+ * Sanitize a server name to match the pattern ^[a-zA-Z0-9_-]+$
+ * - Replaces spaces and invalid characters with underscores
+ * - Removes consecutive underscores
+ * - Removes leading/trailing underscores
+ * 
+ * Examples:
+ * - "Framelink MCP for Figma" -> "Framelink_MCP_for_Figma"
+ * - "my-server" -> "my-server"
+ * - "server@v2!" -> "server_v2"
+ */
+export function sanitizeName(name: string): string {
+    return name
+        // Replace any character that's not alphanumeric, underscore, or hyphen with underscore
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        // Replace consecutive underscores with single underscore
+        .replace(/_+/g, '_')
+        // Remove leading/trailing underscores
+        .replace(/^_+|_+$/g, '');
+}
+
+/**
  * Add mcpm prefix to a server name for a specific agent
  */
 export function addPrefix(name: string, agent: AgentType): string {
+    const sanitized = sanitizeName(name);
     if (usesCamelCase(agent)) {
         // camelCase: mcpmGithub
-        return MCPM_PREFIX_CAMEL + name.charAt(0).toUpperCase() + name.slice(1);
+        return MCPM_PREFIX_CAMEL + sanitized.charAt(0).toUpperCase() + sanitized.slice(1);
     }
     // snake_case: mcpm_github
-    return MCPM_PREFIX_SNAKE + name;
+    return MCPM_PREFIX_SNAKE + sanitized;
 }
 
 /**

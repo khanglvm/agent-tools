@@ -46,7 +46,7 @@ export const agents: Record<AgentType, AgentConfig> = {
         name: 'claude-code',
         displayName: 'Claude Code',
         configDir: claudeHome,
-        mcpConfigPath: join(claudeHome, 'settings.json'),
+        mcpConfigPath: join(home, '.claude.json'),
         wrapperKey: 'mcpServers',
         detectInstalled: () => existsSync(claudeHome),
         supportsLocalConfig: true,

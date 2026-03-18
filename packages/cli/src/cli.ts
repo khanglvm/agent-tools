@@ -5,7 +5,7 @@ import { showMenu } from './prompts/menu.js';
 import { showPastePrompt } from './prompts/paste.js';
 import { showGitPrompt } from './prompts/github.js';
 import { runBuildMode } from './prompts/build.js';
-import { runCommand } from './commands/index.js';
+import { runCommand, parseFlags } from './commands/index.js';
 
 /**
  * Detect if input looks like direct MCP config data (JSON/YAML/TOML)
@@ -67,12 +67,21 @@ function isRawConfigUrl(url: string): boolean {
 async function main() {
     const args = process.argv.slice(2);
 
-    p.intro(pc.bgCyan(pc.black(' Model Context Protocol Manager ')));
+    // Handle --json globally: suppress intro/outro decorations
+    const isJsonMode = args.includes('--json');
+
+    if (!isJsonMode) {
+        p.intro(pc.bgCyan(pc.black(' Model Context Protocol Manager ')));
+    }
 
     // Detect installed agents
     const installedAgents = detectInstalledAgents();
 
     if (installedAgents.length === 0) {
+        if (isJsonMode) {
+            console.log(JSON.stringify({ success: false, error: 'No AI coding agents detected' }));
+            process.exit(0);
+        }
         p.log.warn('No AI coding agents detected on your system.');
         p.log.info('Supported agents: Claude Code, Cursor, Windsurf, Antigravity, and more.');
         p.outro('Install an AI coding agent first, then run mcpm again.');
@@ -92,36 +101,14 @@ async function main() {
         await runBuildMode();
     } else if (isDirectConfig(args[0])) {
         // Direct JSON/YAML/TOML config data passed as argument
-        // Parse remaining args for -a, -y, --scope: flags
-        let autoMode = false;
-        let autoSelectAll = false;
-        let scope: import('./types.js').InstallScope = 'global';
-        const preAgents: import('./types.js').AgentType[] = [];
-
-        for (let i = 1; i < args.length; i++) {
-            const arg = args[i];
-            if (arg === '-y' || arg === '--yes') {
-                autoMode = true;
-            } else if (arg === '-a') {
-                autoSelectAll = true;
-            } else if (arg.startsWith('--scope:')) {
-                const scopeValue = arg.slice('--scope:'.length);
-                if (scopeValue === 'global' || scopeValue === 'project') {
-                    scope = scopeValue;
-                }
-            } else if (arg.startsWith('--agent:')) {
-                const agentName = arg.slice('--agent:'.length);
-                if (agentName !== 'all' && agentName in agents) {
-                    preAgents.push(agentName as import('./types.js').AgentType);
-                }
-            }
-        }
+        // Parse flags from remaining args
+        const { flags } = parseFlags(args.slice(1));
 
         const autoOptions: import('./types.js').AutoOptions = {
-            enabled: autoMode,
-            scope,
-            preAgents: preAgents.length > 0 ? preAgents : undefined,
-            autoSelectAll,
+            enabled: flags.yes,
+            scope: flags.scope,
+            preAgents: flags.agents.length > 0 ? flags.agents : undefined,
+            autoSelectAll: flags.allAgents,
         };
 
         const { showDirectConfigPrompt } = await import('./prompts/direct.js');
@@ -131,62 +118,17 @@ async function main() {
         const { showRawConfigPrompt } = await import('./prompts/raw-url.js');
         await showRawConfigPrompt(installedAgents, args[0]);
     } else if (args[0].startsWith('http')) {
-        // Git repository URL with optional --env:KEY=VALUE, --header:KEY=VALUE, --agent:<name>, --scope:, -y, and --note:"text" args
+        // Git repository URL with optional flags
         const url = args[0];
+        const { flags } = parseFlags(args.slice(1));
+
+        // Parse --env and --header from remaining args (these aren't in standard flags)
         const preEnv: Record<string, string | import('./types.js').CliEnvConfig> = {};
         const preHeaders: Record<string, string | import('./types.js').CliEnvConfig> = {};
-        const preAgents: import('./types.js').AgentType[] = [];
         let note: string | undefined;
-        let autoMode = false;
-        let autoSelectAll = false;
-        let scope: import('./types.js').InstallScope = 'global';
 
-        // Parse --env:KEY=VALUE::modifier, --header:KEY=VALUE::modifier, --agent:<name>, --scope:, -y, and --note:"text" args
         for (let i = 1; i < args.length; i++) {
             const arg = args[i];
-
-            // Parse -y flag (auto mode)
-            if (arg === '-y' || arg === '--yes') {
-                autoMode = true;
-                continue;
-            }
-
-            // Parse --scope:global or --scope:project
-            if (arg.startsWith('--scope:')) {
-                const scopeValue = arg.slice('--scope:'.length);
-                if (scopeValue === 'global' || scopeValue === 'project') {
-                    scope = scopeValue;
-                } else {
-                    p.log.warn(`Unknown scope: ${scopeValue}. Using 'global'.`);
-                }
-                continue;
-            }
-
-            // Parse -a (short alias for --agent:all)
-            if (arg === '-a') {
-                autoSelectAll = true;
-                continue;
-            }
-
-            // Parse --agent:<agent-name> or --agent:all
-            if (arg.startsWith('--agent:')) {
-                const agentName = arg.slice('--agent:'.length);
-                // Handle --agent:all
-                if (agentName === 'all') {
-                    autoSelectAll = true;
-                    continue;
-                }
-                // Dynamic import to avoid circular dependency
-                const { isValidAgentType } = await import('./agents.js');
-                if (isValidAgentType(agentName)) {
-                    if (!preAgents.includes(agentName)) {
-                        preAgents.push(agentName);
-                    }
-                } else {
-                    p.log.warn(`Unknown agent: ${agentName}`);
-                }
-                continue;
-            }
 
             // Helper to parse KEY=VALUE::modifiers
             const parseCredentialArg = (prefix: string): { key: string; config: string | import('./types.js').CliEnvConfig } | null => {
@@ -203,75 +145,65 @@ async function main() {
                 const key = keyValuePart.slice(0, eqIndex);
                 const value = keyValuePart.slice(eqIndex + 1) || null;
 
-                // If no modifiers, use simple string value
                 if (modifiers.length === 0) {
                     return { key, config: value ?? '' };
                 }
 
-                // Parse modifiers into CliEnvConfig
                 const config: import('./types.js').CliEnvConfig = { value };
-
                 for (const mod of modifiers) {
-                    if (mod === 'hidden') {
-                        config.hidden = true;
-                    } else if (mod === 'optional') {
-                        config.required = false;
-                    } else if (mod.startsWith('description=')) {
-                        config.description = mod.slice(12).replace(/^["']|["']$/g, '');
-                    } else if (mod.startsWith('note=')) {
-                        config.note = mod.slice(5).replace(/^["']|["']$/g, '');
-                    }
+                    if (mod === 'hidden') config.hidden = true;
+                    else if (mod === 'optional') config.required = false;
+                    else if (mod.startsWith('description=')) config.description = mod.slice(12).replace(/^["']|["']$/g, '');
+                    else if (mod.startsWith('note=')) config.note = mod.slice(5).replace(/^["']|["']$/g, '');
                 }
-
                 return { key, config };
             };
 
-            // Parse --env:KEY=VALUE::modifiers
             const envResult = parseCredentialArg('--env:');
-            if (envResult) {
-                preEnv[envResult.key] = envResult.config;
-                continue;
-            }
+            if (envResult) { preEnv[envResult.key] = envResult.config; continue; }
 
-            // Parse --header:KEY=VALUE::modifiers
             const headerResult = parseCredentialArg('--header:');
-            if (headerResult) {
-                preHeaders[headerResult.key] = headerResult.config;
-                continue;
-            }
+            if (headerResult) { preHeaders[headerResult.key] = headerResult.config; continue; }
 
-            if (arg.startsWith('--note:')) {
-                note = arg.slice(7); // Remove "--note:"
-            }
+            if (arg.startsWith('--note:')) { note = arg.slice(7); }
         }
 
-        // Build auto options
         const autoOptions: import('./types.js').AutoOptions = {
-            enabled: autoMode,
-            scope,
-            preAgents: preAgents.length > 0 ? preAgents : undefined,
-            autoSelectAll,
+            enabled: flags.yes,
+            scope: flags.scope,
+            preAgents: flags.agents.length > 0 ? flags.agents : undefined,
+            autoSelectAll: flags.allAgents,
         };
 
-        const completed = await showGitPrompt(installedAgents, url, preEnv, note, preHeaders, preAgents, autoOptions);
+        const completed = await showGitPrompt(installedAgents, url, preEnv, note, preHeaders, flags.agents, autoOptions);
 
         // If cancelled, show interactive menu instead of exiting
         if (!completed) {
             await showMenu(installedAgents);
         }
     } else {
-        // Try as CLI command (list, add, remove, sync, status)
+        // Try as CLI command (list, add, remove, sync, status, help)
         const handled = await runCommand(args[0], args.slice(1));
         if (!handled) {
-            p.log.error(`Unknown command: ${args[0]}`);
-            p.log.info('Usage: mcpm [list|add|remove|sync|status] or mcpm [--paste|--build|<url>]');
+            if (isJsonMode) {
+                console.log(JSON.stringify({ success: false, error: `Unknown command: ${args[0]}` }));
+            } else {
+                p.log.error(`Unknown command: ${args[0]}`);
+                p.log.info('Run `mcpm help` for usage.');
+            }
         }
     }
 
-    p.outro('Exit');
+    if (!isJsonMode) {
+        p.outro('Exit');
+    }
 }
 
 main().catch((err) => {
-    console.error(err);
+    if (process.argv.includes('--json')) {
+        console.log(JSON.stringify({ success: false, error: err.message || String(err) }));
+    } else {
+        console.error(err);
+    }
     process.exit(1);
 });
